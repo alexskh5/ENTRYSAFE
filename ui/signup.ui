@@ -57,19 +57,19 @@ border-radius: 50;
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <property name="spacing">
-           <number>0</number>
+           <number>15</number>
           </property>
           <property name="leftMargin">
            <number>50</number>
           </property>
           <property name="topMargin">
-           <number>20</number>
+           <number>30</number>
           </property>
           <property name="rightMargin">
            <number>50</number>
           </property>
           <property name="bottomMargin">
-           <number>20</number>
+           <number>30</number>
           </property>
           <item>
            <widget class="QFrame" name="top">
@@ -475,7 +475,7 @@ border-radius: 20;
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_6">
              <property name="spacing">
-              <number>30</number>
+              <number>20</number>
              </property>
              <property name="leftMargin">
               <number>50</number>
@@ -487,7 +487,7 @@ border-radius: 20;
               <number>50</number>
              </property>
              <property name="bottomMargin">
-              <number>0</number>
+              <number>10</number>
              </property>
              <item>
               <spacer name="verticalSpacer_5">
@@ -512,6 +512,30 @@ border-radius: 20;
                </property>
                <property name="text">
                 <string>Sign Up</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="Line" name="line">
+               <property name="styleSheet">
+                <string notr="true">background-color: black;
+max-height: 1px;</string>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="pushButton">
+               <property name="font">
+                <font>
+                 <pointsize>11</pointsize>
+                 <italic>true</italic>
+                </font>
+               </property>
+               <property name="text">
+                <string>Back to Login</string>
                </property>
               </widget>
              </item>
