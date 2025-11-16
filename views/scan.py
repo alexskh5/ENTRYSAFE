@@ -1,0 +1,131 @@
+# entrysafe/views/login.py  (PyQt6-only, with background image layer)
+import sys
+from os import path
+from PyQt6 import QtWidgets, uic
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt, QSize
+
+# Project paths (assumes this file is entrysafe/views/login.py)
+BASE_DIR = path.dirname(path.abspath(__file__))         # .../entrysafe/views
+PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  # .../entrysafe
+
+UI_FILE = path.join(PROJECT_ROOT, "ui", "scan.ui")
+LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
+BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+AMLOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "AMLogo.png")
+FACESCAN_FILE = path.join(PROJECT_ROOT, "assets", "images", "faceScan.png")
+
+class LoginWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        # Load UI into QMainWindow
+        uic.loadUi(UI_FILE, self)
+
+        # --- Background image using QLabel (behind everything) ---
+        cw = self.findChild(QtWidgets.QWidget, "centralwidget")
+
+        self._bg_label = QtWidgets.QLabel(cw)
+        self._bg_pix = QPixmap(BG_FILE)
+        self._bg_label.setPixmap(self._bg_pix)
+        self._bg_label.setScaledContents(False)
+
+        # FIXED FOR PYQT6:
+        self._bg_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+
+        self._bg_label.lower()      # send to back
+        self._bg_label.resize(cw.size())
+
+        # --- Make frames transparent ---
+        right = self.findChild(QtWidgets.QFrame, "rightFrame")
+        if right:
+            right.setStyleSheet("background: transparent;")
+            right.setAutoFillBackground(False)
+
+        text = self.findChild(QtWidgets.QFrame, "textFrame")
+        if text:
+            text.setStyleSheet("background: transparent;")
+            text.setAutoFillBackground(False)
+
+        logo = self.findChild(QtWidgets.QFrame, "logoFrame")
+        if logo:
+            logo.setStyleSheet("background: transparent;")
+            logo.setAutoFillBackground(False)
+
+
+
+        # --- Labels and pixmaps ---
+        self.logo_label = self.findChild(QtWidgets.QLabel, "logoLabel")
+        self._orig_logo_pix = QPixmap(LOGO_FILE)
+
+        self.am_logo_label = self.findChild(QtWidgets.QLabel, "amLogo")
+        self._am_logo_pix = QPixmap(AMLOGO_FILE)
+
+        self.facescan_label = self.findChild(QtWidgets.QLabel, "scanLabel")
+        self._facescan_pix = QPixmap(FACESCAN_FILE)
+
+        # ensure labels won't auto-scale their contents; we'll scale manually for quality
+        for lbl in (self.logo_label, self.am_logo_label, self.facescan_label):
+            if lbl is not None:
+                try:
+                    lbl.setScaledContents(False)
+                    lbl.setStyleSheet("background: transparent;")
+                except Exception:
+                    pass
+
+        self.setWindowTitle("EntrySafe - Login")
+
+        # Logo scaling settings
+        self.MAX_PROP = 0.40
+        self.ABS_MAX_W = 800
+        self.ABS_MIN_W = 120
+
+    def _scale_to_label(self, pix: QPixmap, label: QtWidgets.QLabel) -> None:
+        """Scale pixmap to the label's current size keeping aspect ratio & quality."""
+        if pix is None or pix.isNull() or label is None:
+            return
+        lbl_size = label.size()
+        if lbl_size.width() <= 0 or lbl_size.height() <= 0:
+            return
+        scaled = pix.scaled(
+            QSize(lbl_size.width(), lbl_size.height()),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        label.setPixmap(scaled)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        # --- Resize background to fill centralwidget (cover behavior) ---
+        cw = self.findChild(QtWidgets.QWidget, "centralwidget") or self.centralWidget()
+        if getattr(self, "_bg_pix", None) and not self._bg_pix.isNull():
+            scaled_bg = self._bg_pix.scaled(
+                cw.size(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._bg_label.setPixmap(scaled_bg)
+            self._bg_label.resize(cw.size())
+            self._bg_label.move(0, 0)
+
+        # --- Scale each image to its LABEL size (matches Designer preview) ---
+        if getattr(self, "_orig_logo_pix", None) and self.logo_label:
+            self._scale_to_label(self._orig_logo_pix, self.logo_label)
+
+        if getattr(self, "_am_logo_pix", None) and self.am_logo_label:
+            self._scale_to_label(self._am_logo_pix, self.am_logo_label)
+
+        if getattr(self, "_facescan_pix", None) and self.facescan_label:
+            self._scale_to_label(self._facescan_pix, self.facescan_label)
+
+
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    win = LoginWindow()
+    win.show()
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
