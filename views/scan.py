@@ -2,7 +2,7 @@
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QSize
 
 # Project paths (assumes this file is entrysafe/views/login.py)
@@ -15,7 +15,7 @@ BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
 AMLOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "AMLogo.png")
 FACESCAN_FILE = path.join(PROJECT_ROOT, "assets", "images", "faceScan.png")
 
-class LoginWindow(QtWidgets.QMainWindow):
+class ScanWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -29,30 +29,16 @@ class LoginWindow(QtWidgets.QMainWindow):
         self._bg_pix = QPixmap(BG_FILE)
         self._bg_label.setPixmap(self._bg_pix)
         self._bg_label.setScaledContents(False)
-
-        # FIXED FOR PYQT6:
         self._bg_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-
         self._bg_label.lower()      # send to back
         self._bg_label.resize(cw.size())
 
-        # --- Make frames transparent ---
-        right = self.findChild(QtWidgets.QFrame, "rightFrame")
-        if right:
-            right.setStyleSheet("background: transparent;")
-            right.setAutoFillBackground(False)
-
-        text = self.findChild(QtWidgets.QFrame, "textFrame")
-        if text:
-            text.setStyleSheet("background: transparent;")
-            text.setAutoFillBackground(False)
-
-        logo = self.findChild(QtWidgets.QFrame, "logoFrame")
-        if logo:
-            logo.setStyleSheet("background: transparent;")
-            logo.setAutoFillBackground(False)
-
-
+        # frames transparent
+        for name in ("rightFrame", "textFrame", "logoFrame"):
+            frame = self.findChild(QtWidgets.QFrame, name)
+            if frame:
+                frame.setStyleSheet("background: transparent;")
+                frame.setAutoFillBackground(False)
 
         # --- Labels and pixmaps ---
         self.logo_label = self.findChild(QtWidgets.QLabel, "logoLabel")
@@ -61,11 +47,12 @@ class LoginWindow(QtWidgets.QMainWindow):
         self.am_logo_label = self.findChild(QtWidgets.QLabel, "amLogo")
         self._am_logo_pix = QPixmap(AMLOGO_FILE)
 
-        self.facescan_label = self.findChild(QtWidgets.QLabel, "scanLabel")
+        self.facescan_btn = self.findChild(QtWidgets.QPushButton, "scanBtn")
         self._facescan_pix = QPixmap(FACESCAN_FILE)
 
+
         # ensure labels won't auto-scale their contents; we'll scale manually for quality
-        for lbl in (self.logo_label, self.am_logo_label, self.facescan_label):
+        for lbl in (self.logo_label, self.am_logo_label, self.facescan_btn):
             if lbl is not None:
                 try:
                     lbl.setScaledContents(False)
@@ -73,7 +60,7 @@ class LoginWindow(QtWidgets.QMainWindow):
                 except Exception:
                     pass
 
-        self.setWindowTitle("EntrySafe - Login")
+        self.setWindowTitle("EntrySafe - Gate")
 
         # Logo scaling settings
         self.MAX_PROP = 0.40
@@ -93,6 +80,24 @@ class LoginWindow(QtWidgets.QMainWindow):
             Qt.TransformationMode.SmoothTransformation,
         )
         label.setPixmap(scaled)
+
+    def _scale_icon_to_button(self, pixmap: QPixmap, button: QtWidgets.QPushButton):
+        """Scale a QPixmap and set it as the QPushButton icon (keeps aspect ratio)."""
+        if pixmap is None or pixmap.isNull() or button is None:
+            return
+        btn_w = max(1, button.width())
+        btn_h = max(1, button.height())
+        target_side = min(btn_w, btn_h)
+
+        scaled = pixmap.scaled(
+            QSize(target_side, target_side),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+
+        # wrap scaled QPixmap in a QIcon
+        button.setIcon(QIcon(scaled))
+        button.setIconSize(scaled.size())
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -116,13 +121,13 @@ class LoginWindow(QtWidgets.QMainWindow):
         if getattr(self, "_am_logo_pix", None) and self.am_logo_label:
             self._scale_to_label(self._am_logo_pix, self.am_logo_label)
 
-        if getattr(self, "_facescan_pix", None) and self.facescan_label:
-            self._scale_to_label(self._facescan_pix, self.facescan_label)
+        if getattr(self, "_facescan_pix", None) and self.facescan_btn:
+            self._scale_icon_to_button(self._facescan_pix, self.facescan_btn)
 
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    win = LoginWindow()
+    win = ScanWindow()
     win.show()
     sys.exit(app.exec())
 

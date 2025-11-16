@@ -55,7 +55,7 @@ class LoginWindow(QtWidgets.QMainWindow):
             self.logo_label.setStyleSheet("background: transparent;")
             self.logo_label.setPixmap(self._orig_logo_pix)
 
-        self.setWindowTitle("EntrySafe - Login")
+        self.setWindowTitle("EntrySafe - Log In")
 
         # Logo scaling settings
         self.MAX_PROP = 0.40

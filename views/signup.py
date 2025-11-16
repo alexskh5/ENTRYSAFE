@@ -13,7 +13,7 @@ UI_FILE = path.join(PROJECT_ROOT, "ui", "signup.ui")
 LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
 BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
 
-class LoginWindow(QtWidgets.QMainWindow):
+class SignupWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
@@ -27,10 +27,7 @@ class LoginWindow(QtWidgets.QMainWindow):
         self._bg_pix = QPixmap(BG_FILE)
         self._bg_label.setPixmap(self._bg_pix)
         self._bg_label.setScaledContents(False)
-
-        # FIXED FOR PYQT6:
         self._bg_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-
         self._bg_label.lower()      # send to back
         self._bg_label.resize(cw.size())
 
@@ -55,7 +52,7 @@ class LoginWindow(QtWidgets.QMainWindow):
             self.logo_label.setStyleSheet("background: transparent;")
             self.logo_label.setPixmap(self._orig_logo_pix)
 
-        self.setWindowTitle("EntrySafe - Login")
+        self.setWindowTitle("EntrySafe - Sign Up")
 
         # Logo scaling settings
         self.MAX_PROP = 0.40
@@ -91,7 +88,7 @@ class LoginWindow(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    win = LoginWindow()
+    win = SignupWindow()
     win.show()
     sys.exit(app.exec())
 
