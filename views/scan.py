@@ -1,13 +1,11 @@
-# entrysafe/views/login.py  (PyQt6-only, with background image layer)
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QSize
 
-# Project paths (assumes this file is entrysafe/views/login.py)
-BASE_DIR = path.dirname(path.abspath(__file__))         # .../entrysafe/views
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  # .../entrysafe
+BASE_DIR = path.dirname(path.abspath(__file__))       
+PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  
 
 UI_FILE = path.join(PROJECT_ROOT, "ui", "scan.ui")
 LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
@@ -21,6 +19,19 @@ class ScanWindow(QtWidgets.QMainWindow):
 
         # Load UI into QMainWindow
         uic.loadUi(UI_FILE, self)
+
+        # --- Ensure attendance page is the initial page in the stacked widget ---
+        self.stacked = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")
+        if self.stacked:
+            attendance_page = self.findChild(QtWidgets.QWidget, "attendancePage")
+            if attendance_page:
+                self.stacked.setCurrentWidget(attendance_page)
+            else:
+                # fallback to index 0
+                try:
+                    self.stacked.setCurrentIndex(0)
+                except Exception:
+                    pass
 
         # --- Background image using QLabel (behind everything) ---
         cw = self.findChild(QtWidgets.QWidget, "centralwidget")
@@ -66,6 +77,13 @@ class ScanWindow(QtWidgets.QMainWindow):
         self.MAX_PROP = 0.40
         self.ABS_MAX_W = 800
         self.ABS_MIN_W = 120
+        
+# ----------------------- READ THHISS FLEASEEE ---------------------------------------------------------------------------------------
+
+        # "listWidget" name na ara sa qt designer para gawsanan sa results nig search sa attendance
+        # nagtesting koy butang unta dummy data para makita nakon say itsura sa results para maadjust css ang blema kay nagvinugo si chatgpt
+        # so hinde ko alam ano itsura ng results huhu ambot lord
+
 
     def _scale_to_label(self, pix: QPixmap, label: QtWidgets.QLabel) -> None:
         """Scale pixmap to the label's current size keeping aspect ratio & quality."""
