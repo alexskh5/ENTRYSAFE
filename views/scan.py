@@ -21,7 +21,8 @@ class ScanWindow(QtWidgets.QMainWindow):
         uic.loadUi(UI_FILE, self)
 
         # --- Ensure attendance page is the initial page in the stacked widget ---
-        self.stacked = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")
+        # "scanPage" name sa next page na iclick para mugwas ang camera
+        self.stacked = self.findChild(QtWidgets.QStackedWidget, "stackedWidget") 
         if self.stacked:
             attendance_page = self.findChild(QtWidgets.QWidget, "attendancePage")
             if attendance_page:
@@ -78,11 +79,11 @@ class ScanWindow(QtWidgets.QMainWindow):
         self.ABS_MAX_W = 800
         self.ABS_MIN_W = 120
         
-# ----------------------- READ THHISS FLEASEEE ---------------------------------------------------------------------------------------
+
 
         # "listWidget" name na ara sa qt designer para gawsanan sa results nig search sa attendance
         # nagtesting koy butang unta dummy data para makita nakon say itsura sa results para maadjust css ang blema kay nagvinugo si chatgpt
-        # so hinde ko alam ano itsura ng results huhu ambot lord
+
 
 
     def _scale_to_label(self, pix: QPixmap, label: QtWidgets.QLabel) -> None:

@@ -303,6 +303,9 @@ background-color: rgba(255, 255, 255, 100);
        </property>
        <item>
         <widget class="QStackedWidget" name="stackedWidget">
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
          <widget class="QWidget" name="scanPage">
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <property name="spacing">
@@ -716,7 +719,25 @@ border-radius: 15;
                      <number>10</number>
                     </property>
                     <item>
-                     <widget class="QListWidget" name="listWidget"/>
+                     <widget class="QListWidget" name="listWidget">
+                      <property name="font">
+                       <font>
+                        <pointsize>15</pointsize>
+                       </font>
+                      </property>
+                      <property name="styleSheet">
+                       <string notr="true"/>
+                      </property>
+                      <property name="spacing">
+                       <number>5</number>
+                      </property>
+                      <property name="currentRow">
+                       <number>-1</number>
+                      </property>
+                      <property name="sortingEnabled">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
                     </item>
                    </layout>
                   </widget>
