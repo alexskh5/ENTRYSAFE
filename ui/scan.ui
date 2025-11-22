@@ -304,7 +304,7 @@ background-color: rgba(255, 255, 255, 100);
        <item>
         <widget class="QStackedWidget" name="stackedWidget">
          <property name="currentIndex">
-          <number>0</number>
+          <number>1</number>
          </property>
          <widget class="QWidget" name="scanPage">
           <layout class="QVBoxLayout" name="verticalLayout_4">

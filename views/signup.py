@@ -1,13 +1,11 @@
-# entrysafe/views/login.py  (PyQt6-only, with background image layer)
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 
-# Project paths (assumes this file is entrysafe/views/login.py)
-BASE_DIR = path.dirname(path.abspath(__file__))         # .../entrysafe/views
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  # .../entrysafe
+BASE_DIR = path.dirname(path.abspath(__file__))        
+PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  
 
 UI_FILE = path.join(PROJECT_ROOT, "ui", "signup.ui")
 LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
