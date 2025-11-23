@@ -18,6 +18,32 @@ class SignupWindow(QtWidgets.QMainWindow):
         # Load UI into QMainWindow
         uic.loadUi(UI_FILE, self)
 
+        # Stacked widget navigation
+        try:
+            self.stacked = self.findChild(QtWidgets.QStackedWidget, "stackedWidget")
+            self.signUpPage = self.findChild(QtWidgets.QWidget, "signUpPage")
+            self.securityPage = self.findChild(QtWidgets.QWidget, "securityPage")
+
+            # set initial page to mainStudentPage
+            if self.stacked and self.signUpPage:
+                self.stacked.setCurrentWidget(self.signUpPage)
+
+            # find navigation buttons
+            self.nextBtn = self.findChild(QtWidgets.QPushButton, "nextBtn")
+            self.backToLoginBtn = self.findChild(QtWidgets.QPushButton, "backToLoginBtn")
+            self.backToSignupBtn = self.findChild(QtWidgets.QPushButton, "backToSignupBtn")
+            self.signupBtn = self.findChild(QtWidgets.QPushButton, "signupBtn")
+
+            # connect buttons (only if both button and target page exist)
+            if self.nextBtn and self.securityPage:
+                self.nextBtn.clicked.connect(lambda: self.stacked.setCurrentWidget(self.securityPage))
+            if self.backToSignupBtn and self.signUpPage:
+                self.backToSignupBtn.clicked.connect(lambda: self.stacked.setCurrentWidget(self.signUpPage))
+        except Exception:
+            # ignore if stacked-widget/pages/buttons are not present
+            pass
+
+
         # --- Background image using QLabel (behind everything) ---
         cw = self.findChild(QtWidgets.QWidget, "centralwidget")
 

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1038</width>
+    <width>1249</width>
     <height>702</height>
    </rect>
   </property>
@@ -453,7 +453,7 @@ color: white;</string>
               </widget>
              </item>
              <item>
-              <widget class="QLabel" name="welcomeLabel_2">
+              <widget class="QLabel" name="welcomeLabel">
                <property name="font">
                 <font>
                  <pointsize>20</pointsize>
@@ -723,7 +723,6 @@ border: 2px solid grey;
  </widget>
  <resources>
   <include location="../../paperSync/resource.qrc"/>
-  <include location="../../Users/limph/pyqt-env/Lib/site-packages/qt6_applications/Qt/resource.qrc"/>
  </resources>
  <connections/>
 </ui>
