@@ -1,2 +1,3 @@
 grey: #e7e7e7
 purple: #cb6ce5
+light-purple: E4C9E5
