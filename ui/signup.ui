@@ -425,7 +425,7 @@ max-height: 1px;</string>
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="pushButton">
+              <widget class="QPushButton" name="backBtn">
                <property name="font">
                 <font>
                  <pointsize>11</pointsize>
