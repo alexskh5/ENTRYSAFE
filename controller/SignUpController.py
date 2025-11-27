@@ -6,16 +6,16 @@ class SignupController:
         self.db = Database()
         self.conn = self.db.connect()
 
-    def signup(self, username, password, homepass):
+    def signup(self, username, password, homepass, q1, a1, q2, a2):
         try:
             cur = self.conn.cursor()
 
             cur.execute("""
-                CALL signup_user(%s, %s, %s)
-            """, (username, password, homepass))
+                CALL signup_user(%s, %s, %s, %s, %s, %s, %s)
+            """, (username, password, homepass, q1, a1, q2, a2))
 
             self.conn.commit()
-            return True, "Signup successful!"
+            return True, "Account created successfully!"
 
         except psycopg2.errors.UniqueViolation:
             self.conn.rollback()
@@ -23,4 +23,4 @@ class SignupController:
 
         except Exception as e:
             self.conn.rollback()
-            return False, f"Error: {str(e)}"
+            return False, str(e)

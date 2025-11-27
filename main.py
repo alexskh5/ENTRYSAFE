@@ -1,10 +1,10 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-from views.login import LoginWindow
+from views.landing import LandingWindow
 
 def main():
     app = QApplication(sys.argv)
-    win = LoginWindow()
+    win = LandingWindow()   # first screen
     win.show()
     sys.exit(app.exec())
 

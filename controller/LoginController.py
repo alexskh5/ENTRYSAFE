@@ -8,17 +8,12 @@ class LoginController:
     def login(self, username, password):
         try:
             cur = self.conn.cursor()
-
-            cur.execute("""
-                SELECT * FROM login_user(%s, %s)
-            """, (username, password))
-
+            cur.execute("SELECT * FROM login_user(%s, %s)", (username, password))
             result = cur.fetchone()
 
             if result:
-                return True, result  # (userID, username)
-            else:
-                return False, "Invalid username or password."
+                return True, result  # (userid, username)
+            return False, "Invalid username or password."
 
         except Exception as e:
             return False, str(e)

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1316</width>
-    <height>696</height>
+    <height>753</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -179,7 +179,7 @@ border-radius: 50;
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_5">
              <property name="spacing">
-              <number>0</number>
+              <number>15</number>
              </property>
              <property name="leftMargin">
               <number>10</number>
@@ -232,8 +232,7 @@ border-radius: 50;
                 </font>
                </property>
                <property name="styleSheet">
-                <string notr="true">background-color: #cb6ce5;
-color: white;
+                <string notr="true">background-color: #E4C9E5;
 border-radius: 20;</string>
                </property>
                <property name="alignment">
@@ -245,12 +244,9 @@ border-radius: 20;</string>
               </widget>
              </item>
              <item>
-              <spacer name="verticalSpacer_7">
+              <spacer name="verticalSpacer_8">
                <property name="orientation">
                 <enum>Qt::Vertical</enum>
-               </property>
-               <property name="sizeType">
-                <enum>QSizePolicy::MinimumExpanding</enum>
                </property>
                <property name="sizeHint" stdset="0">
                 <size>
@@ -286,10 +282,8 @@ border-radius: 20;</string>
                 </font>
                </property>
                <property name="styleSheet">
-                <string notr="true">background-color: #cb6ce5;
-color: white;
-border-radius: 20;
-</string>
+                <string notr="true">background-color: #E4C9E5;
+border-radius: 20;</string>
                </property>
                <property name="echoMode">
                 <enum>QLineEdit::Password</enum>
@@ -303,7 +297,21 @@ border-radius: 20;
               </widget>
              </item>
              <item>
-              <spacer name="verticalSpacer_4">
+              <widget class="QPushButton" name="forgotBtn">
+               <property name="font">
+                <font>
+                 <pointsize>12</pointsize>
+                 <italic>true</italic>
+                 <underline>false</underline>
+                </font>
+               </property>
+               <property name="text">
+                <string>Forgot password?</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="verticalSpacer_7">
                <property name="orientation">
                 <enum>Qt::Vertical</enum>
                </property>
