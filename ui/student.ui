@@ -556,6 +556,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -580,6 +583,9 @@ border-radius: 30;
               </property>
               <item row="0" column="0" rowspan="2">
                <widget class="QFrame" name="frame_10">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -864,6 +870,9 @@ padding: 0 15px;
               </item>
               <item row="0" column="1" rowspan="2">
                <widget class="QFrame" name="frame_11">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -1122,6 +1131,9 @@ padding: 0 15px;
               </item>
               <item row="0" column="2">
                <widget class="QFrame" name="frame_12">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -1255,6 +1267,11 @@ padding: 0 15px;
                  </item>
                  <item>
                   <widget class="QLabel" name="contactLabel">
+                   <property name="font">
+                    <font>
+                     <pointsize>13</pointsize>
+                    </font>
+                   </property>
                    <property name="text">
                     <string>Emergency Contact Number</string>
                    </property>
@@ -1292,6 +1309,9 @@ border-radius: 15;
 padding: 0 15px;
 </string>
                    </property>
+                   <property name="placeholderText">
+                    <string>09</string>
+                   </property>
                   </widget>
                  </item>
                  <item>
@@ -1309,6 +1329,9 @@ padding: 0 15px;
               </item>
               <item row="1" column="2">
                <widget class="QFrame" name="frame_13">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -1611,6 +1634,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -1908,6 +1934,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -2148,6 +2177,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -2172,6 +2204,9 @@ border-radius: 30;
               </property>
               <item row="0" column="0" rowspan="2">
                <widget class="QFrame" name="frame_25">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -2458,6 +2493,9 @@ padding: 0 15px;
               </item>
               <item row="0" column="2">
                <widget class="QFrame" name="frame_27">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -2646,6 +2684,9 @@ padding: 0 15px;
               </item>
               <item row="0" column="1" rowspan="2">
                <widget class="QFrame" name="frame_26">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -3485,6 +3526,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -3506,6 +3550,9 @@ border-radius: 30;
               </property>
               <item>
                <widget class="QFrame" name="frame_46">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -3659,6 +3706,9 @@ padding: 0 15px;
               </item>
               <item>
                <widget class="QFrame" name="frame_49">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -3774,6 +3824,9 @@ padding-left: 20px;
                  </item>
                  <item row="2" column="1">
                   <widget class="QFrame" name="frame_51">
+                   <property name="styleSheet">
+                    <string notr="true">background-color: transparent;</string>
+                   </property>
                    <property name="frameShape">
                     <enum>QFrame::StyledPanel</enum>
                    </property>
@@ -4097,6 +4150,9 @@ border-radius: 30;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
              </property>
@@ -4118,6 +4174,9 @@ border-radius: 30;
               </property>
               <item>
                <widget class="QFrame" name="frame_44">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -4271,6 +4330,9 @@ padding: 0 15px;
               </item>
               <item>
                <widget class="QFrame" name="frame_47">
+                <property name="styleSheet">
+                 <string notr="true">background-color: transparent;</string>
+                </property>
                 <property name="frameShape">
                  <enum>QFrame::NoFrame</enum>
                 </property>
@@ -4386,6 +4448,9 @@ padding-left: 20px;
                  </item>
                  <item row="2" column="1">
                   <widget class="QFrame" name="frame_48">
+                   <property name="styleSheet">
+                    <string notr="true">background-color: transparent;</string>
+                   </property>
                    <property name="frameShape">
                     <enum>QFrame::StyledPanel</enum>
                    </property>

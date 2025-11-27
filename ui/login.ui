@@ -23,6 +23,9 @@
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
      <widget class="QFrame" name="leftFrame">
+      <property name="styleSheet">
+       <string notr="true">background-color: transparent;</string>
+      </property>
       <property name="frameShape">
        <enum>QFrame::StyledPanel</enum>
       </property>
@@ -76,6 +79,9 @@ border-radius: 50;
           </property>
           <item>
            <widget class="QFrame" name="top">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -171,6 +177,9 @@ border-radius: 50;
           </item>
           <item>
            <widget class="QFrame" name="mid">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -328,6 +337,9 @@ border-radius: 20;</string>
           </item>
           <item>
            <widget class="QFrame" name="bot">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -423,6 +435,9 @@ max-height: 1px;</string>
     </item>
     <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
      <widget class="QFrame" name="rightFrame">
+      <property name="styleSheet">
+       <string notr="true">background-color: transparent;</string>
+      </property>
       <property name="frameShape">
        <enum>QFrame::StyledPanel</enum>
       </property>
