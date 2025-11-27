@@ -161,3 +161,35 @@ class StudentController:
 
         self.conn.commit()
         return True
+
+    def get_student(self, studID):
+        self.cursor.execute("""
+            SELECT *
+            FROM students
+            WHERE studID = %s
+            LIMIT 1;
+        """, (studID,))
+        return self.cursor.fetchone()
+
+
+    def update_student(self, data):
+        self.cursor.execute("""
+            CALL update_student(
+                %(studID)s,
+                %(studLname)s,
+                %(studFname)s,
+                %(studMname)s,
+                %(studDOB)s,
+                %(studSex)s,
+                %(studContact)s,
+                %(motherName)s,
+                %(motherDOB)s,
+                %(fatherName)s,
+                %(fatherDOB)s,
+                %(guardianName)s,
+                %(guardianDOB)s
+            );
+        """, data)
+
+        self.conn.commit()
+        return True

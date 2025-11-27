@@ -435,7 +435,7 @@ import sys
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDate
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableWidgetItem
 
 from controller.StudentController import StudentController
@@ -481,6 +481,12 @@ class StudentWindow(QtWidgets.QMainWindow):
         btn = self.findChild(QtWidgets.QPushButton, "enrollStudBtn")
         if btn:
             btn.clicked.connect(self.open_enroll_page)
+            
+        
+        save_btn = self.findChild(QtWidgets.QPushButton, "saveEditBtn")
+        if save_btn:
+            save_btn.clicked.connect(self.save_student_changes)
+
 
         # All back buttons → mainStudentPage
         # True back to Dashboard
@@ -553,6 +559,11 @@ class StudentWindow(QtWidgets.QMainWindow):
         self.guardianName = self.findChild(QtWidgets.QLineEdit, "guardianNameInput")
         self.guardianDOB = self.findChild(QtWidgets.QDateEdit, "guardianDOBInput")
 
+        self.guardianDOBEdit = self.findChild(QtWidgets.QDateEdit, "guardianDOBEdit")
+        self.guardianDOBEdit.setSpecialValueText("")  # show blank if at minimum
+        self.guardianDOBEdit.setDate(self.guardianDOBEdit.minimumDate())
+
+        
         self.verifyCheck = self.findChild(QtWidgets.QCheckBox, "verifyCheck")
         self.confirmLabel = self.findChild(QtWidgets.QLabel, "confirmLabel")
 
@@ -651,9 +662,118 @@ class StudentWindow(QtWidgets.QMainWindow):
     # =====================
     # BUTTON HANDLERS
     # =====================
-    def edit_student(self, student_id):
-        print("Editing student:", student_id)
+    def edit_student(self, studID):
+        print("Editing student:", studID)
+
+        # Fetch from DB
+        student = self.controller.get_student(studID)
+        if not student:
+            QtWidgets.QMessageBox.warning(self, "Error", "Student not found.")
+            return
+
+        if student["guardiandob"] is None:
+            self.guardianDOBEdit.setDate(self.guardianDOBEdit.minimumDate())
+        else:
+            self.guardianDOBEdit.setDate(student["guardiandob"])
+
+        # Store current editing ID
+        self.current_edit_id = studID
+
+        # Populate fields
+        self.findChild(QtWidgets.QLineEdit, "studFnameEdit").setText(student["studfname"])
+        self.findChild(QtWidgets.QLineEdit, "studMnameEdit").setText(student["studmname"] or "")
+        self.findChild(QtWidgets.QLineEdit, "studLnameEdit").setText(student["studlname"])
+        self.findChild(QtWidgets.QDateEdit, "studDOBEdit").setDate(student["studdob"])
+        self.findChild(QtWidgets.QComboBox, "studSexEdit").setCurrentText(student["studsex"])
+
+        self.findChild(QtWidgets.QLineEdit, "motherNameEdit").setText(student["mothername"])
+        self.findChild(QtWidgets.QDateEdit, "motherDOBEdit").setDate(student["motherdob"])
+
+        self.findChild(QtWidgets.QLineEdit, "fatherNameEdit").setText(student["fathername"] or "")
+        self.findChild(QtWidgets.QDateEdit, "fatherDOBEdit").setDate(student["fatherdob"])
+
+        self.findChild(QtWidgets.QLineEdit, "guardianNameEdit").setText(student["guardianname"] or "")
+        
+        self.findChild(QtWidgets.QLineEdit, "contactInputEdit").setText(student["studcontact"])
+
+        # Switch page
         self.stacked.setCurrentWidget(self.editStudentPage)
+
+    def save_student_changes(self):
+        # --- Required fields ---
+        fname = self.findChild(QtWidgets.QLineEdit, "studFnameEdit").text().strip()
+        lname = self.findChild(QtWidgets.QLineEdit, "studLnameEdit").text().strip()
+        contact = self.findChild(QtWidgets.QLineEdit, "contactInputEdit").text().strip()
+
+        errors = []
+        if fname == "":
+            errors.append("• First name is required.")
+        if lname == "":
+            errors.append("• Last name is required.")
+        if contact == "":
+            errors.append("• Emergency contact is required.")
+
+        # If required fields missing → STOP & warn
+        if errors:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Missing Required Fields",
+                "Please complete the following fields:\n\n" + "\n".join(errors)
+            )
+            return
+
+        # --- Confirm saving ---
+        confirm = QtWidgets.QMessageBox.question(
+            self,
+            "Confirm",
+            "Are you sure you want to save the changes?",
+            QtWidgets.QMessageBox.StandardButton.Yes | QtWidgets.QMessageBox.StandardButton.No
+        )
+
+        if confirm != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+
+        # --- Prepare data ---
+        data = {
+            "studID": self.current_edit_id,
+            "studFname": fname,
+            "studMname": self.findChild(QtWidgets.QLineEdit, "studMnameEdit").text(),
+            "studLname": lname,
+            "studDOB": self.findChild(QtWidgets.QDateEdit, "studDOBEdit").text(),
+            "studSex": self.findChild(QtWidgets.QComboBox, "studSexEdit").currentText(),
+            "studContact": contact,
+            "motherName": self.findChild(QtWidgets.QLineEdit, "motherNameEdit").text(),
+            "motherDOB": (
+                None 
+                if self.findChild(QtWidgets.QLineEdit, "motherDOBEdit").text().strip() == "" 
+                else self.findChild(QtWidgets.QDateEdit, "motherDOBEdit").text()
+            ),
+            "fatherName": self.findChild(QtWidgets.QLineEdit, "fatherNameEdit").text(),
+            "fatherDOB": (
+                None 
+                if self.findChild(QtWidgets.QLineEdit, "fatherDOBEdit").text().strip() == "" 
+                else self.findChild(QtWidgets.QDateEdit, "fatherDOBEdit").text()
+            ),
+            "guardianName": self.findChild(QtWidgets.QLineEdit, "guardianNameEdit").text(),
+            "guardianDOB": (
+                None 
+                if self.findChild(QtWidgets.QLineEdit, "guardianNameEdit").text().strip() == "" 
+                else self.findChild(QtWidgets.QDateEdit, "guardianDOBEdit").text()
+            ),
+        }
+
+        # --- Save to DB ---
+        self.controller.update_student(data)
+
+        QtWidgets.QMessageBox.information(
+            self,
+            "Success",
+            "Student information has been successfully updated!"
+        )
+
+        # Refresh table + go back
+        self.load_students()
+        self.stacked.setCurrentWidget(self.mainStudentPage)
 
     def delete_student(self, student_id):
         print("Deleting student:", student_id)
@@ -667,8 +787,11 @@ class StudentWindow(QtWidgets.QMainWindow):
     # ENROLL
     # =====================
     def open_enroll_page(self):
+        self.clear_enroll_fields()  # 🔥 CLEAR FIELDS FIRST
+
         new_id = self.controller.generate_student_id(self.username)
         self.studIDLabel.setText(new_id)
+
         self.stacked.setCurrentWidget(self.enrollStudentPage)
 
     def finish_enrollment(self):
@@ -686,11 +809,11 @@ class StudentWindow(QtWidgets.QMainWindow):
             "studSex": self.studSex.currentText(),
             "studContact": self.contact.text(),
             "motherName": self.motherName.text(),
-            "motherDOB": self.motherDOB.text(),
+            "motherDOB": None if self.motherName.text().strip() == "" else self.motherDOB.date().toString("yyyy-MM-dd"),
             "fatherName": self.fatherName.text(),
-            "fatherDOB": self.fatherDOB.text(),
+            "fatherDOB": None if self.fatherName.text().strip() == "" else self.fatherDOB.date().toString("yyyy-MM-dd"),
             "guardianName": self.guardianName.text(),
-            "guardianDOB": self.guardianDOB.text(),
+            "guardianDOB": None if self.guardianName.text().strip() == "" else self.guardianDOB.text(),
         }
         self.controller.insert_student(self.username, data)
 
@@ -752,3 +875,26 @@ class StudentWindow(QtWidgets.QMainWindow):
         self.dashboard = AdminWindow(self.username)
         self.dashboard.show()
         self.close()
+
+    def clear_enroll_fields(self):        
+        self.studFname.clear()
+        self.studMname.clear()
+        self.studLname.clear()
+        self.contact.clear()
+
+        self.motherName.clear()
+        self.fatherName.clear()
+        self.guardianName.clear()
+
+        # Reset dates to today (optional)
+        self.studDOB.setDate(self.studDOB.minimumDate())
+        self.motherDOB.setDate(self.motherDOB.minimumDate())
+        self.fatherDOB.setDate(self.fatherDOB.minimumDate())
+        self.guardianDOB.setDate(self.guardianDOB.minimumDate())
+
+
+        # Reset combo box (Male/Female)
+        self.studSex.setCurrentIndex(0)
+
+        # Uncheck verification
+        self.verifyCheck.setChecked(False)
