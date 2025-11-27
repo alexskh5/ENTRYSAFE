@@ -3275,7 +3275,7 @@ border-radius: 30;
                <number>20</number>
               </property>
               <item>
-               <widget class="QLabel" name="studentNameDsiplay">
+               <widget class="QLabel" name="studentNameDisplay">
                 <property name="font">
                  <font>
                   <pointsize>18</pointsize>
@@ -4733,7 +4733,7 @@ padding-left: 20px;
                      </widget>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QPushButton" name="reakeBtn">
+                     <widget class="QPushButton" name="retakeBtn">
                       <property name="font">
                        <font>
                         <pointsize>12</pointsize>
@@ -4758,7 +4758,7 @@ padding-left: 20px;
                      </widget>
                     </item>
                     <item row="0" column="0" rowspan="2">
-                     <widget class="QLabel" name="label_23">
+                     <widget class="QLabel" name="imgPlaceholder">
                       <property name="minimumSize">
                        <size>
                         <width>150</width>
@@ -4874,7 +4874,7 @@ padding-left: 20px;
                </spacer>
               </item>
               <item>
-               <widget class="QPushButton" name="addBtn">
+               <widget class="QPushButton" name="addSaveBtn">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                   <horstretch>0</horstretch>

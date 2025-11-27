@@ -431,7 +431,12 @@
 #     main()
 
 
-import sys
+import cv2
+import face_recognition
+from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout
+from PyQt6.QtGui import QImage
+from PyQt6.QtCore import QTimer
+import sys, os
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
@@ -518,6 +523,36 @@ class StudentWindow(QtWidgets.QMainWindow):
         if btn:
             btn.clicked.connect(self.finish_enrollment)
 
+        self.addGuardianBtn.clicked.connect(self.open_add_guardian_page)
+        self.addSaveBtn.clicked.connect(self.save_guardian)
+
+        self.scanFaceBtn.clicked.connect(self.scan_guardian_face)
+        self.retakeBtn.clicked.connect(self.retake_guardian_face)
+        self.deleteBtn.clicked.connect(self.delete_scanned_face)
+
+        
+        # VIEW GUARDIAN PAGE
+        self.guardianTable = self.findChild(QtWidgets.QTableWidget, "guardianTable")
+        self.studentNameDisplay = self.findChild(QtWidgets.QLabel, "studentNameDisplay")
+
+        self.newGuardianName = self.findChild(QtWidgets.QLineEdit, "newGuardianNameInput")
+        self.newGuardianDOB = self.findChild(QtWidgets.QDateEdit, "newGuardianDOBInput")
+
+        self.scanFaceBtn = self.findChild(QtWidgets.QPushButton, "scanFaceBtn")
+        self.retakeBtn = self.findChild(QtWidgets.QPushButton, "retakeBtn")
+        self.deleteBtn = self.findChild(QtWidgets.QPushButton, "deleteBtn")
+        self.imgPlaceholder = self.findChild(QtWidgets.QLabel, "imgPlaceholder")
+
+        self.addSaveBtn = self.findChild(QtWidgets.QPushButton, "addSaveBtn")
+        self.addGuardianBtn = self.findChild(QtWidgets.QPushButton, "addGuardianBtn")
+
+
+        # Tracks guardian data
+        self.current_student_for_guardian = None
+        self.current_guardian_image_path = None
+        self.current_guardian_encoding = None
+
+        
         # Guardian buttons
         guardian_routes = [
             ("addBtn", self.addGuardianPage),
@@ -779,9 +814,18 @@ class StudentWindow(QtWidgets.QMainWindow):
         print("Deleting student:", student_id)
         # You will add deletion logic later
 
-    def view_guardian(self, student_id):
-        print("Viewing guardian for:", student_id)
+    def view_guardian(self, studid):
+        from controller.GuardianController import GuardianController
+        self.current_student_for_guardian = studid
+
+        student = self.controller.get_student(studid)
+        full = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}"
+        self.studentNameDisplay.setText(full)
+
+        self.load_guardians_table(studid)
         self.stacked.setCurrentWidget(self.viewGuardianPage)
+
+
 
     # =====================
     # ENROLL
@@ -887,10 +931,11 @@ class StudentWindow(QtWidgets.QMainWindow):
         self.guardianName.clear()
 
         # Reset dates to today (optional)
-        self.studDOB.setDate(self.studDOB.minimumDate())
-        self.motherDOB.setDate(self.motherDOB.minimumDate())
-        self.fatherDOB.setDate(self.fatherDOB.minimumDate())
-        self.guardianDOB.setDate(self.guardianDOB.minimumDate())
+        self.studDOB.setDate(QDate.currentDate())
+        self.motherDOB.setDate(QDate.currentDate())
+        self.fatherDOB.setDate(QDate.currentDate())
+        self.guardianDOB.setDate(QDate.currentDate())
+
 
 
         # Reset combo box (Male/Female)
@@ -898,3 +943,207 @@ class StudentWindow(QtWidgets.QMainWindow):
 
         # Uncheck verification
         self.verifyCheck.setChecked(False)
+
+
+
+    def load_guardians_table(self, studid):
+        from controller.GuardianController import GuardianController
+        gc = GuardianController()
+
+        data = gc.get_guardians_for_student(studid)
+        table = self.guardianTable
+        table.setRowCount(0)
+
+        for g in data:
+            row = table.rowCount()
+            table.insertRow(row)
+
+            table.setItem(row, 0, QTableWidgetItem(str(g["guardianid"])))
+            table.setItem(row, 1, QTableWidgetItem(g["guardianname"]))
+
+            # Actions
+            action = QWidget()
+            layout = QHBoxLayout(action)
+            layout.setContentsMargins(0,0,0,0)
+
+            edit_btn = QPushButton("Edit")
+            delete_btn = QPushButton("Delete")
+
+            edit_btn.clicked.connect(lambda _, id=g["guardianid"]: self.edit_guardian(id))
+            delete_btn.clicked.connect(lambda _, id=g["guardianid"]: self.delete_guardian_record(id))
+
+            layout.addWidget(edit_btn)
+            layout.addWidget(delete_btn)
+            table.setCellWidget(row, 2, action)
+
+
+
+    def open_add_guardian_page(self):
+        self.newGuardianName.clear()
+        self.newGuardianDOB.setDate(QDate.currentDate())
+        self.newGuardianDOB.setCalendarPopup(True)
+
+
+        self.imgPlaceholder.clear()
+        self.current_guardian_image_path = None
+        self.current_guardian_encoding = None
+
+        self.stacked.setCurrentWidget(self.addGuardianPage)
+
+            
+    
+    def save_guardian(self):
+        name = self.newGuardianName.text().strip()
+        dob = self.newGuardianDOB.date().toString("yyyy-MM-dd")
+
+        if name == "":
+            QtWidgets.QMessageBox.warning(self, "Missing", "Guardian name is required.")
+            return
+
+        if not self.current_guardian_encoding:
+            QtWidgets.QMessageBox.warning(self, "Missing", "Please scan the guardian’s face.")
+            return
+
+        from controller.GuardianController import GuardianController
+        gc = GuardianController()
+
+        encoded = gc.encode_face(self.current_guardian_encoding)
+
+        gc.insert_guardian(
+            studid=self.current_student_for_guardian,
+            name=name,
+            dob=dob,
+            image_path=self.current_guardian_image_path,
+            encoding=encoded
+        )
+
+        QtWidgets.QMessageBox.information(self, "Success", "Guardian added successfully!")
+
+        self.load_guardians_table(self.current_student_for_guardian)
+        self.stacked.setCurrentWidget(self.viewGuardianPage)
+
+
+
+    def delete_guardian_record(self, guardianid):
+        confirm = QtWidgets.QMessageBox.question(
+            self, "Confirm", "Delete this guardian?",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+        )
+
+        if confirm != QtWidgets.QMessageBox.Yes:
+            return
+
+        from controller.GuardianController import GuardianController
+        gc = GuardianController()
+        gc.delete_guardian(guardianid)
+
+        self.load_guardians_table(self.current_student_for_guardian)
+    
+    def scan_guardian_face(self):
+        cam = CameraCapture()
+        if cam.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            # SAVE IMAGE
+            folder = f"uploads/guardians"
+            os.makedirs(folder, exist_ok=True)
+
+            filename = f"{self.current_student_for_guardian}_{self.newGuardianName.text()}.jpg"
+            filepath = os.path.join(folder, filename)
+
+            cv2.imwrite(filepath, cam.captured_image)
+            self.current_guardian_image_path = filepath
+
+            # SAVE ENCODING
+            self.current_guardian_encoding = cam.captured_encoding.tolist()
+
+            # PREVIEW
+            pixmap = QPixmap(filepath)
+            self.imgPlaceholder.setPixmap(pixmap.scaled(
+                200, 200, Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            ))
+
+            QtWidgets.QMessageBox.information(self, "Success", "Face scanned successfully!")
+
+    def retake_guardian_face(self):
+        self.current_guardian_encoding = None
+
+        if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
+            os.remove(self.current_guardian_image_path)
+
+        self.current_guardian_image_path = None
+        self.imgPlaceholder.clear()
+
+        self.scan_guardian_face()  # reopen webcam
+
+
+    def delete_scanned_face(self):
+        self.current_guardian_encoding = None
+
+        if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
+            os.remove(self.current_guardian_image_path)
+
+        self.current_guardian_image_path = None
+        self.imgPlaceholder.clear()
+
+
+
+
+class CameraCapture(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Scan Guardian Face")
+        self.resize(600, 500)
+
+        self.video_label = QLabel()
+        self.video_label.setFixedSize(560, 420)
+
+        self.capture_btn = QPushButton("Capture")
+        self.capture_btn.clicked.connect(self.capture_frame)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.video_label)
+        layout.addWidget(self.capture_btn)
+        self.setLayout(layout)
+
+        self.cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 500)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480) 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(20)
+
+        self.captured_encoding = None
+        self.captured_image = None
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if not ret:
+            return
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        qimg = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
+        self.video_label.setPixmap(QPixmap.fromImage(qimg))
+
+        self.current_frame = frame
+
+    def capture_frame(self):
+        frame = self.current_frame
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        locations = face_recognition.face_locations(rgb)
+
+        if len(locations) == 0:
+            QtWidgets.QMessageBox.warning(self, "No Face", "No face detected. Try again.")
+            return
+
+        encoding = face_recognition.face_encodings(rgb, locations)[0]
+        self.captured_encoding = encoding
+        self.captured_image = frame
+
+        self.accept()
+
+    def closeEvent(self, event):
+        self.cap.release()
+        self.timer.stop()
+        event.accept()

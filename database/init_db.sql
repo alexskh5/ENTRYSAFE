@@ -282,6 +282,127 @@ $$;
 
 
 
+select * from students;
 
 
+CREATE OR REPLACE PROCEDURE update_student(
+    p_studID        VARCHAR,
+    p_studLname     VARCHAR,
+    p_studFname     VARCHAR,
+    p_studMname     VARCHAR,
+    p_studDOB       DATE,
+    p_studSex       VARCHAR,
+    p_studContact   VARCHAR,
+    p_motherName    VARCHAR,
+    p_motherDOB     DATE,
+    p_fatherName    VARCHAR,
+    p_fatherDOB     DATE,
+    p_guardianName  VARCHAR,
+    p_guardianDOB   DATE
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE students
+    SET
+        studLname = p_studLname,
+        studFname = p_studFname,
+        studMname = p_studMname,
+        studDOB = p_studDOB,
+        studSex = p_studSex,
+        studContact = p_studContact,
+        motherName = p_motherName,
+        motherDOB = p_motherDOB,
+        fatherName = p_fatherName,
+        fatherDOB = p_fatherDOB,
+        guardianName = p_guardianName,
+        guardianDOB = p_guardianDOB
+    WHERE studID = p_studID;
+END;
+$$;
+
+
+
+
+
+
+
+
+
+DROP TABLE IF EXISTS guardians CASCADE;
+
+CREATE TABLE guardians (
+    guardianid SERIAL PRIMARY KEY,
+
+    studid VARCHAR(20) NOT NULL,
+    FOREIGN KEY (studid)
+        REFERENCES students(studID)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    guardianname VARCHAR(255) NOT NULL,
+    guardiandob DATE,
+    
+    face_image_path TEXT,
+    face_encoding BYTEA,
+
+    createdat TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE add_guardian(
+    p_studid        INT,
+    p_guardianname  VARCHAR,
+    p_guardiandob   DATE,
+    p_image_path    TEXT,
+    p_face_encoding BYTEA
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO guardians(
+        studid,
+        guardianname,
+        guardiandob,
+        image_path,
+        face_encoding
+    )
+    VALUES (
+        p_studid,
+        p_guardianname,
+        p_guardiandob,
+        p_image_path,
+        p_face_encoding
+    );
+END;
+$$;
+
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE update_guardian(
+    p_guardianid    INT,
+    p_guardianname  VARCHAR,
+    p_guardiandob   DATE,
+    p_image_path    TEXT,
+    p_face_encoding BYTEA
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE guardians
+    SET
+        guardianname = p_guardianname,
+        guardiandob = p_guardiandob,
+        image_path = p_image_path,
+        face_encoding = p_face_encoding
+    WHERE guardianid = p_guardianid;
+END;
+$$;
 
