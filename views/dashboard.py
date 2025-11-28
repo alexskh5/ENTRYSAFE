@@ -207,12 +207,17 @@
 # if __name__ == "__main__":
 #     main()
 
-
+# views/dashboard.py
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
+from views.change_username import ChangeUsernameDialog
+from views.change_password import ChangePasswordDialog
+from views.change_homepass import ChangeHomepassDialog
+from views.about import AboutDialog
+from views.ask_help import AskHelpDialog
 
 BASE_DIR = path.dirname(path.abspath(__file__))
 PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
@@ -284,7 +289,42 @@ class AdminWindow(QtWidgets.QMainWindow):
         self.adminLabel = self.findChild(QtWidgets.QLabel, "adminLabel")
         if self.adminLabel:
             self.adminLabel.setText(self.username)
-
+            
+        # --------------------------------
+        # 🔥 CHANGE USERNAME BUTTON
+        # --------------------------------
+        self.userBtn = self.findChild(QtWidgets.QPushButton, "userBtn")
+        if self.userBtn:
+            self.userBtn.clicked.connect(self.open_change_username)
+            
+        # --------------------------------
+        # 🔥 CHANGE PASSWORD BUTTON
+        # --------------------------------
+        self.passBtn = self.findChild(QtWidgets.QPushButton, "passBtn")
+        if self.passBtn:
+            self.passBtn.clicked.connect(self.open_change_password)
+        
+        # --------------------------------
+        # 🔥 CHANGE HOME PASSWORD BUTTON
+        # --------------------------------
+        self.homePassBtn = self.findChild(QtWidgets.QPushButton, "homePassBtn")
+        if self.homePassBtn:
+            self.homePassBtn.clicked.connect(self.open_change_hpassword)
+            
+        # --------------------------------
+        # 🔥 ABOUT BUTTON
+        # --------------------------------
+        self.aboutBtn = self.findChild(QtWidgets.QPushButton, "aboutBtn")
+        if self.aboutBtn:
+            self.aboutBtn.clicked.connect(self.open_about)
+            
+        # --------------------------------
+        # 🔥 ASK HELP BUTTON
+        # --------------------------------
+        self.askBtn = self.findChild(QtWidgets.QPushButton, "askBtn")
+        if self.askBtn:
+            self.askBtn.clicked.connect(self.open_help)
+                
         # --------------------------------
         # 🔥 LOGOUT BUTTON
         # --------------------------------
@@ -356,3 +396,35 @@ class AdminWindow(QtWidgets.QMainWindow):
         self._menu_animation.setStartValue(current)
         self._menu_animation.setEndValue(target)
         self._menu_animation.start()
+
+    # ---------------- Change Username Button ----------------
+    def open_change_username(self):
+        dialog = ChangeUsernameDialog(self.username)
+        if dialog.exec():
+            self.username = dialog.current_username
+            if self.adminLabel:
+                self.adminLabel.setText(self.username)
+                
+    # ---------------- Change Password Button ----------------
+    def open_change_password(self):
+        dialog = ChangePasswordDialog(self.username)
+        if dialog.exec():
+            return
+        
+    # ---------------- Change Home Password Button ----------------
+    def open_change_hpassword(self):
+        dialog = ChangeHomepassDialog(self.username)
+        if dialog.exec():
+            return
+        
+    # ---------------- About Button ----------------
+    def open_about(self):
+        dialog = AboutDialog()
+        if dialog.exec():
+            return
+    
+    # ---------------- Ask Help Button ----------------
+    def open_help(self):
+        dialog = AskHelpDialog()
+        if dialog.exec():
+            return

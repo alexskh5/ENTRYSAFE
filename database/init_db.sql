@@ -282,6 +282,91 @@ $$;
 
 
 
+--Update username
+CREATE OR REPLACE PROCEDURE update_username(
+    p_old_username VARCHAR,
+    p_new_username VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM users WHERE LOWER(username) = LOWER(p_new_username)) THEN
+        RAISE EXCEPTION 'Username "%" already exists.', p_new_username;
+    END IF;
+
+    UPDATE users
+    SET username = p_new_username
+    WHERE LOWER(username) = LOWER(p_old_username);
+
+    -- Because of ON UPDATE CASCADE, students.username is updated automatically
+END;
+$$;
+
+
+-- Change password
+CREATE OR REPLACE PROCEDURE change_user_password(
+    p_username TEXT,
+    p_current_password TEXT,
+    p_new_password TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_userid INT;
+BEGIN
+    SELECT userid
+    INTO v_userid
+    FROM users
+    WHERE LOWER(username) = LOWER(p_username)
+      AND userpassword = crypt(p_current_password, userpassword);
+
+    IF v_userid IS NULL THEN
+        RAISE EXCEPTION 'Current password is incorrect.';
+    END IF;
+
+    -- At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+    IF LENGTH(p_new_password) < 8
+       OR p_new_password !~ '[A-Z]'
+       OR p_new_password !~ '[a-z]'
+       OR p_new_password !~ '[0-9]' THEN
+        RAISE EXCEPTION 'Password must be at least 8 characters long, include uppercase, lowercase, and a number.';
+    END IF;
+
+    UPDATE users
+    SET userpassword = crypt(p_new_password, gen_salt('bf'))
+    WHERE userid = v_userid;
+
+END;
+$$;
+
+
+--Change home pass
+CREATE OR REPLACE PROCEDURE change_user_homepass(
+    p_username TEXT,
+    p_current_homepass TEXT,
+    p_new_homepass TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_userid INT;
+BEGIN
+    SELECT userid
+    INTO v_userid
+    FROM users
+    WHERE LOWER(username) = LOWER(p_username)
+      AND userhomepass = crypt(p_current_homepass, userhomepass);
+
+    IF v_userid IS NULL THEN
+        RAISE EXCEPTION 'Current home password is incorrect.';
+    END IF;
+
+    UPDATE users
+    SET userhomepass = crypt(p_new_homepass, gen_salt('bf'))
+    WHERE userid = v_userid;
+END;
+$$;
+
 
 
 
