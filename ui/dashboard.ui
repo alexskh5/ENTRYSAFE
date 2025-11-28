@@ -64,6 +64,9 @@ color: white;</string>
        </property>
        <item>
         <widget class="QFrame" name="top">
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -136,7 +139,9 @@ color: white;</string>
           <string notr="true">QPushButton{
 	Text-align: left;
 	padding: 10px 0px;
-}</string>
+}
+
+background-color: transparent;</string>
          </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
@@ -287,7 +292,9 @@ color: white;</string>
           <string notr="true">QPushButton{
 	Text-align: left;
 	padding: 10px 0px;
-}</string>
+}
+
+background-color: transparent;</string>
          </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
@@ -357,7 +364,8 @@ color: white;</string>
        <string/>
       </property>
       <property name="styleSheet">
-       <string notr="true">color: black;</string>
+       <string notr="true">color: black;
+</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <property name="spacing">
@@ -383,6 +391,9 @@ color: white;</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -407,6 +418,9 @@ color: white;</string>
           </property>
           <item>
            <widget class="QFrame" name="leftFrame">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -482,6 +496,9 @@ color: white;</string>
           </item>
           <item>
            <widget class="QFrame" name="frame_2">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -542,6 +559,9 @@ color: white;</string>
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
          </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>

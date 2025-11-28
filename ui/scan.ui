@@ -76,6 +76,9 @@ background-color: rgba(255, 255, 255, 100);
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -153,6 +156,9 @@ background-color: rgba(255, 255, 255, 100);
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -214,6 +220,9 @@ background-color: rgba(255, 255, 255, 100);
        </item>
        <item alignment="Qt::AlignLeft">
         <widget class="QFrame" name="back">
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -279,6 +288,9 @@ background-color: rgba(255, 255, 255, 100);
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: transparent;</string>
+      </property>
       <property name="frameShape">
        <enum>QFrame::StyledPanel</enum>
       </property>
@@ -304,7 +316,7 @@ background-color: rgba(255, 255, 255, 100);
        <item>
         <widget class="QStackedWidget" name="stackedWidget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="scanPage">
           <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -330,6 +342,9 @@ background-color: rgba(255, 255, 255, 100);
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
@@ -392,6 +407,9 @@ background-color: rgba(255, 255, 255, 100);
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
              </property>
@@ -446,6 +464,9 @@ background-origin: content;
            </item>
            <item>
             <widget class="QFrame" name="bot">
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
              </property>
@@ -517,6 +538,9 @@ background-origin: content;
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
+             <property name="styleSheet">
+              <string notr="true">background-color: transparent;</string>
+             </property>
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
              </property>
@@ -579,7 +603,7 @@ background-origin: content;
               </sizepolicy>
              </property>
              <property name="styleSheet">
-              <string notr="true"/>
+              <string notr="true">background-color: transparent;</string>
              </property>
              <property name="frameShape">
               <enum>QFrame::StyledPanel</enum>
@@ -630,6 +654,9 @@ border-radius: 30;</string>
                  </property>
                  <item alignment="Qt::AlignTop">
                   <widget class="QFrame" name="f1">
+                   <property name="styleSheet">
+                    <string notr="true">background-color: transparent;</string>
+                   </property>
                    <property name="frameShape">
                     <enum>QFrame::StyledPanel</enum>
                    </property>
@@ -695,6 +722,9 @@ border-radius: 15;
                      <horstretch>0</horstretch>
                      <verstretch>0</verstretch>
                     </sizepolicy>
+                   </property>
+                   <property name="styleSheet">
+                    <string notr="true">background-color: transparent;</string>
                    </property>
                    <property name="frameShape">
                     <enum>QFrame::StyledPanel</enum>
