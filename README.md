@@ -111,6 +111,7 @@ Run the system:
 
 python main.py
 
+```
 
 ---
 
@@ -121,4 +122,4 @@ Mangubat, Khezy Gwen    khezmangubat@gmail.com
 Lim, Phoebe Gale        phoebegalelim1@gmail.com
 Booc, Pearl Shene       boocshene17@gmail.com
 Igot, Kimberly Marie    igotkimberlymarie@gmail.com
-```
+
