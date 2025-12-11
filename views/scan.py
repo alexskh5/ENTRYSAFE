@@ -1,155 +1,510 @@
 import sys
-from os import path
+import cv2
+import face_recognition
+import numpy as np
 from PyQt6 import QtWidgets, uic
-from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QDialog, QLabel, QHBoxLayout, QVBoxLayout, QListWidgetItem, QInputDialog
 
-BASE_DIR = path.dirname(path.abspath(__file__))       
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  
+from controller.StudentController import StudentController
+from controller.GuardianController import GuardianController
+from os import path
 
+
+# -----------------------------------------
+# PATHS
+# -----------------------------------------
+BASE_DIR = path.dirname(path.abspath(__file__))
+PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 UI_FILE = path.join(PROJECT_ROOT, "ui", "scan.ui")
-LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
-AMLOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "AMLogo.png")
-FACESCAN_FILE = path.join(PROJECT_ROOT, "assets", "images", "faceScan.png")
 
-class ScanWindow(QtWidgets.QMainWindow):
+
+class CameraCapture(QDialog):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Scanning...")
+        self.resize(600, 500)
 
-        # Load UI into QMainWindow
-        uic.loadUi(UI_FILE, self)
+        self.video_label = QLabel()
+        self.video_label.setFixedSize(560, 420)
 
-        # --- Ensure attendance page is the initial page in the stacked widget ---
-        # "scanPage" name sa next page na iclick para mugwas ang camera
-        self.stacked = self.findChild(QtWidgets.QStackedWidget, "stackedWidget") 
-        if self.stacked:
-            attendance_page = self.findChild(QtWidgets.QWidget, "attendancePage")
-            if attendance_page:
-                self.stacked.setCurrentWidget(attendance_page)
+        layout = QVBoxLayout()
+        layout.addWidget(self.video_label)
+        self.setLayout(layout)
+
+        self.cap = self.initialize_camera()
+        self.current_frame = None
+        self.last_face_location = None
+        self.motion_detected = False
+        self.captured_encoding = None
+        self.auto_captured = False
+
+        # UI camera feed refresh
+        self.render_timer = QTimer()
+        self.render_timer.timeout.connect(self.update_frame_fast)
+        self.render_timer.start(30)
+
+        # Motion + face detection loop
+        self.detect_timer = QTimer()
+        self.detect_timer.timeout.connect(self.detect_face_and_capture)
+        self.detect_timer.start(500)
+
+    def initialize_camera(self):
+        import platform
+        system = platform.system()
+
+        for i in [0, 1, 2, 3]:
+            if system == "Windows":
+                cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+            elif system == "Darwin":
+                cap = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION)
             else:
-                # fallback to index 0
-                try:
-                    self.stacked.setCurrentIndex(0)
-                except Exception:
-                    pass
+                cap = cv2.VideoCapture(i)
 
-        # --- Background image using QLabel (behind everything) ---
-        cw = self.findChild(QtWidgets.QWidget, "centralwidget")
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-        self._bg_label = QtWidgets.QLabel(cw)
-        self._bg_pix = QPixmap(BG_FILE)
-        self._bg_label.setPixmap(self._bg_pix)
-        self._bg_label.setScaledContents(False)
-        self._bg_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self._bg_label.lower()      # send to back
-        self._bg_label.resize(cw.size())
+            if cap.isOpened():
+                ret, frame = cap.read()
+                if ret:
+                    return cap
+            cap.release()
 
-        # frames transparent
-        for name in ("rightFrame", "textFrame", "logoFrame"):
-            frame = self.findChild(QtWidgets.QFrame, name)
-            if frame:
-                frame.setStyleSheet("background: transparent;")
-                frame.setAutoFillBackground(False)
+        raise RuntimeError("No working camera found")
 
-        # --- Labels and pixmaps ---
-        self.logo_label = self.findChild(QtWidgets.QLabel, "logoLabel")
-        self._orig_logo_pix = QPixmap(LOGO_FILE)
-
-        self.am_logo_label = self.findChild(QtWidgets.QLabel, "amLogo")
-        self._am_logo_pix = QPixmap(AMLOGO_FILE)
-
-        self.facescan_btn = self.findChild(QtWidgets.QPushButton, "scanBtn")
-        self._facescan_pix = QPixmap(FACESCAN_FILE)
-
-
-        # ensure labels won't auto-scale their contents; we'll scale manually for quality
-        for lbl in (self.logo_label, self.am_logo_label, self.facescan_btn):
-            if lbl is not None:
-                try:
-                    lbl.setScaledContents(False)
-                    lbl.setStyleSheet("background: transparent;")
-                except Exception:
-                    pass
-
-        self.setWindowTitle("EntrySafe - Gate")
-
-        # Logo scaling settings
-        self.MAX_PROP = 0.40
-        self.ABS_MAX_W = 800
-        self.ABS_MIN_W = 120
+    def update_frame_fast(self):
+        ret, frame = self.cap.read()
+        if not ret:
+            return
         
+        frame = cv2.flip(frame, 1)
+        self.current_frame = frame
 
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb.shape
+        qimg = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
+        self.video_label.setPixmap(QPixmap.fromImage(qimg))
 
-        # "listWidget" name na ara sa qt designer para gawsanan sa results nig search sa attendance
-        # nagtesting koy butang unta dummy data para makita nakon say itsura sa results para maadjust css ang blema kay nagvinugo si chatgpt
-
-
-
-    def _scale_to_label(self, pix: QPixmap, label: QtWidgets.QLabel) -> None:
-        """Scale pixmap to the label's current size keeping aspect ratio & quality."""
-        if pix is None or pix.isNull() or label is None:
+    def detect_face_and_capture(self):
+        if self.auto_captured or self.current_frame is None:
             return
-        lbl_size = label.size()
-        if lbl_size.width() <= 0 or lbl_size.height() <= 0:
+
+        small = cv2.resize(self.current_frame, (0,0), fx=0.5, fy=0.5)
+        rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+
+        faces = face_recognition.face_locations(rgb_small, model="hog")
+        if not faces:
             return
-        scaled = pix.scaled(
-            QSize(lbl_size.width(), lbl_size.height()),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        label.setPixmap(scaled)
 
-    def _scale_icon_to_button(self, pixmap: QPixmap, button: QtWidgets.QPushButton):
-        """Scale a QPixmap and set it as the QPushButton icon (keeps aspect ratio)."""
-        if pixmap is None or pixmap.isNull() or button is None:
+        top, right, bottom, left = faces[0]
+        top *= 2; right *= 2; bottom *= 2; left *= 2
+
+        if self.last_face_location:
+            old_top, old_right, old_bottom, old_left = self.last_face_location
+            movement = abs(top - old_top) + abs(left - old_left)
+            if movement > 25:
+                self.motion_detected = True
+
+        self.last_face_location = (top, right, bottom, left)
+
+        # Proceed automatically when face moves
+        if self.motion_detected:
+            self.auto_captured = True
+            self.capture_frame()
+
+    def capture_frame(self):
+        rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
+        faces = face_recognition.face_locations(rgb, model="hog")
+
+        if not faces:
+            QtWidgets.QMessageBox.warning(self, "Error", "Face lost, try again.")
+            self.auto_captured = False
             return
-        btn_w = max(1, button.width())
-        btn_h = max(1, button.height())
-        target_side = min(btn_w, btn_h)
 
-        scaled = pixmap.scaled(
-            QSize(target_side, target_side),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
+        self.captured_encoding = face_recognition.face_encodings(
+            rgb, faces, model="large"
+        )[0]
 
-        # wrap scaled QPixmap in a QIcon
-        button.setIcon(QIcon(scaled))
-        button.setIconSize(scaled.size())
+        self.cleanup_camera()
+        self.accept()
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def cleanup_camera(self):
+        if hasattr(self, "render_timer"):
+            self.render_timer.stop()
+        if hasattr(self, "detect_timer"):
+            self.detect_timer.stop()
+        if self.cap:
+            self.cap.release()
 
-        # --- Resize background to fill centralwidget (cover behavior) ---
-        cw = self.findChild(QtWidgets.QWidget, "centralwidget") or self.centralWidget()
-        if getattr(self, "_bg_pix", None) and not self._bg_pix.isNull():
-            scaled_bg = self._bg_pix.scaled(
-                cw.size(),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
+    def closeEvent(self, event):
+        self.cleanup_camera()
+        event.accept()
+
+
+
+# --------------------------------------------------------
+# MAIN SCAN WINDOW
+# --------------------------------------------------------
+class ScanWindow(QtWidgets.QMainWindow):
+    def __init__(self, username):
+        super().__init__()
+
+        self.username = username
+        self.student_controller = StudentController()
+        self.guardian_controller = GuardianController()
+
+        # Load UI
+        uic.loadUi(UI_FILE, self)
+        
+        
+        
+        self.resize(1400, 800)
+
+        # --- center window ---
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        win = self.frameGeometry()
+        win.moveCenter(screen.center())
+        self.move(win.topLeft())
+        
+        self.studentList = self.findChild(QtWidgets.QListWidget)
+
+        if self.studentList is None:
+            print("ERROR: Could not find ANY QListWidget in UI.")
+        else:
+            print("LIST FOUND:", self.studentList.objectName())
+            self.studentList.itemClicked.connect(self.handle_student_click)
+    
+
+        # ---------------------------
+        # REQUIRED UI ELEMENTS
+        # ---------------------------
+        self.scanSearchField = self.findChild(QtWidgets.QLineEdit, "scanSearchField")
+        self.studentList = self.findChild(QtWidgets.QListWidget, "listWidget")
+        self.backBtn = self.findChild(QtWidgets.QPushButton, "backBtn")
+        
+        
+        
+        # --------------------------------------
+        # HOVER EFFECT FOR STUDENT LIST
+        # --------------------------------------
+        self.studentList.setMouseTracking(True)
+        self.studentList.setStyleSheet("""
+            QListWidget::item {
+                padding: 10px;
+                color: #333;
+            }
+            QListWidget::item:hover {
+                background: #f0e6ff;
+                color: #8b2fdb;
+            }
+            QListWidget::item:selected {
+                background: #8b2fdb;
+                color: white;
+            }
+        """)
+
+        print("UI LOADED →", self.scanSearchField, self.studentList, self.backBtn)
+
+        # ---------------------------
+        # CONNECT EVENTS
+        # ---------------------------
+        if self.scanSearchField:
+            self.scanSearchField.textChanged.connect(self.refresh_student_list)
+
+        if self.studentList:
+            self.studentList.itemClicked.connect(self.handle_student_click)
+
+        if self.backBtn:
+            self.backBtn.clicked.connect(self.go_back)
+
+        self.all_students = []
+        self.refresh_student_list()
+
+    # ----------------------------------------------------
+    # LOAD + SEARCH STUDENTS
+    # ----------------------------------------------------
+    def refresh_student_list(self):
+        term = self.scanSearchField.text().strip() if self.scanSearchField else ""
+        students = self.student_controller.search_students(self.username, term)
+
+        print("DEBUG students from search:", students)
+
+        self.all_students = students
+        self.studentList.clear()
+
+        for s in students:
+            fullname = f"{s['studlname']}, {s['studfname']} {s['studmname'] or ''}".strip()
+            item = QListWidgetItem(f"{fullname} ({s['studid']})")
+            item.setData(Qt.ItemDataRole.UserRole, s["studid"])
+            self.studentList.addItem(item)
+
+    
+
+    def handle_student_click(self, item: QListWidgetItem):
+        if item is None:
+            return
+
+        # ----------------------------------------------------
+        # GET STUDENT BY CODE (studid like "S001")
+        # ----------------------------------------------------
+        studid = item.data(Qt.ItemDataRole.UserRole)
+        if not studid:
+            QtWidgets.QMessageBox.warning(self, "Error", "Invalid student selected")
+            return
+
+        student = next((s for s in self.all_students if s["studid"] == studid), None)
+        if student is None:
+            QtWidgets.QMessageBox.warning(self, "Error", "Student not found")
+            return
+
+        fullname = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}".strip()
+
+        # ----------------------------------------------------
+        # OPEN CAMERA + CAPTURE FACE
+        # ----------------------------------------------------
+        cam = CameraCapture()
+        result = cam.exec()
+
+        if result != QtWidgets.QDialog.DialogCode.Accepted:
+            return
+
+        captured = cam.captured_encoding
+        frame = cam.current_frame
+
+        if captured is None:
+            QtWidgets.QMessageBox.warning(self, "Error", "No face captured")
+            return
+
+        # ----------------------------------------------------
+        # SECURITY CHECK: FACE SIZE MUST BE LARGE ENOUGH
+        # ----------------------------------------------------
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        faces = face_recognition.face_locations(rgb)
+
+        if not faces:
+            QtWidgets.QMessageBox.warning(self, "Error", "No face detected")
+            return
+
+        top, right, bottom, left = faces[0]
+        face_width = right - left
+        face_height = bottom - top
+
+        # Prevent scanning small printed photos or far faces
+        if face_width < 150 or face_height < 150:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Too Far",
+                "Please move closer to the camera."
             )
-            self._bg_label.setPixmap(scaled_bg)
-            self._bg_label.resize(cw.size())
-            self._bg_label.move(0, 0)
+            return
 
-        # --- Scale each image to its LABEL size (matches Designer preview) ---
-        if getattr(self, "_orig_logo_pix", None) and self.logo_label:
-            self._scale_to_label(self._orig_logo_pix, self.logo_label)
+        # ----------------------------------------------------
+        # GET REAL studentid (INT PK)
+        # ----------------------------------------------------
+        student_db = self.student_controller.get_student(self.username, studid)
+        if not student_db:
+            QtWidgets.QMessageBox.warning(self, "Error", "Student not found in DB")
+            return
 
-        if getattr(self, "_am_logo_pix", None) and self.am_logo_label:
-            self._scale_to_label(self._am_logo_pix, self.am_logo_label)
+        real_id = student_db["studentid"]   # <--- correct primary key
 
-        if getattr(self, "_facescan_pix", None) and self.facescan_btn:
-            self._scale_icon_to_button(self._facescan_pix, self.facescan_btn)
+        # ----------------------------------------------------
+        # LOAD GUARDIANS (STUDENT-SPECIFIC)
+        # ----------------------------------------------------
+        guardians = self.guardian_controller.get_guardians_for_student(real_id)
+
+        if not guardians:
+            QtWidgets.QMessageBox.warning(self, "No Guardians", "No guardians registered")
+            return
+
+        # Convert bytea → numpy arrays
+        known_encodings = []
+        names = []
+
+        for g in guardians:
+            enc_bytes = g.get("face_encoding")
+            if enc_bytes:
+                try:
+                    decoded = self.guardian_controller.decode_face(enc_bytes)
+                    if decoded is not None:
+                        known_encodings.append(decoded)
+                        names.append(g["guardianname"])
+                except Exception as e:
+                    print("Decode error:", e)
+
+        if not known_encodings:
+            QtWidgets.QMessageBox.warning(self, "Error", "No stored face encodings")
+            return
+
+        
+        distances = face_recognition.face_distance(known_encodings, captured)
+        best_idx = int(np.argmin(distances))
+        best_distance = float(distances[best_idx])
+
+        THRESHOLD = 0.40  # strict + makeup-friendly
+
+        if best_distance <= THRESHOLD:
+            guardian_name = names[best_idx]
+            status = self.guardian_controller.get_today_attendance(real_id)
+
+            if status is None or status["dropoff_time"] is None:
+                self.guardian_controller.call_dropoff(real_id, guardian_name, True)
+                QtWidgets.QMessageBox.information(self, "Drop-off Recorded",
+                    f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: DROP-OFF")
+                return
+
+            if status["pickup_time"] is None:
+                self.guardian_controller.call_pickup(real_id, guardian_name, True)
+                QtWidgets.QMessageBox.information(self, "Pick-up Recorded",
+                    f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: PICK-UP")
+                return
+
+            QtWidgets.QMessageBox.warning(self, "Already Completed",
+                f"Student: {fullname}\nBoth DROP-OFF and PICK-UP already recorded today.")
+            return
 
 
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    win = ScanWindow()
-    win.show()
-    sys.exit(app.exec())
+        # ----------------------------------------------------
+        # ========== UNVERIFIED BRANCH ==========
+        # ----------------------------------------------------
+        emergency_contact = student.get("studcontact") or "No contact number stored"
+
+        status = self.guardian_controller.get_today_attendance(real_id)
+
+        if status is None or status["dropoff_time"] is None:
+            # First log → DROP-OFF
+            self.guardian_controller.call_dropoff(real_id, "UNVERIFIED GUARDIAN", False)
+            action = "DROP-OFF"
+        elif status["pickup_time"] is None:
+            # Follow-up log → PICK-UP
+            self.guardian_controller.call_pickup(real_id, "UNVERIFIED GUARDIAN", False)
+            action = "PICK-UP"
+        else:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Already Completed",
+                f"Student: {fullname}\nBoth DROP-OFF and PICK-UP are already recorded today."
+            )
+            return
 
 
-if __name__ == "__main__":
-    main()
+        # ----------------------------------------------------
+        # MANUAL GUARDIAN OVERRIDE (Emergency)
+        # ----------------------------------------------------
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle("Guardian NOT Recognized")
+        msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+
+        msg.setTextFormat(Qt.TextFormat.RichText)
+
+        msg.setText(
+            f"""
+            <div style="text-align:center;">
+
+                <!-- Title -->
+                <p style="font-size:18px; font-weight:700; margin-bottom:2px;">
+                    Guardian NOT Recognized
+                </p>
+
+                <!-- Action -->
+                <p style="font-size:14px; margin-top:0;">
+                    for <b style="color:#8b2fdb;">{action}</b>
+                </p>
+
+                <!-- Big Spacer -->
+                <div style="margin:18px 0;"></div>
+
+                <!-- Contact -->
+                <p style="font-size:14px; margin:4px 0;">
+                    <b>You may add or contact guardian to verify:</b>
+                </p>
+
+                <p style="font-size:16px; font-weight:600; color:#8b2fdb; margin-top:2px;">
+                    {emergency_contact}
+                </p>
+
+                <!-- Big Spacer -->
+                <div style="margin:18px 0;"></div>
+
+                <!-- Student Info -->
+                <p style="text-align:left; margin-left:40px;">
+                    <b>Student:</b> {fullname}<br>
+                    <b>Status:</b> Attendance Recorded
+                </p>
+
+            </div>
+            """
+        )
+
+        # Purple button design
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: #ffffff;
+            }
+            QLabel {
+                color: #333;
+                font-size: 13px;
+            }
+            QPushButton {
+                min-width: 130px;
+                padding: 7px 14px;
+                border-radius: 8px;
+                border: none;
+                font-weight: 600;
+                background-color: #8b2fdb;
+                color: #ffffff;
+            }
+            QPushButton:hover {
+                background-color: #a35cff;
+            }
+        """)
+
+        manual_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        skip_btn   = msg.addButton("Skip For Now", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+
+        msg.exec()
+
+        # Optional: use your app logo as window icon
+        # icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
+        # msg.setWindowIcon(QtGui.QIcon(icon_path))
+
+
+
+        if msg.clickedButton() == manual_btn:
+            name, ok = QInputDialog.getText(
+                self,
+                "Manual Verification",
+                "Enter Guardian Name:"
+            )
+
+            if ok and name.strip():
+                manual_name = name.strip()
+
+                # Only update pickup guardian
+                # self.guardian_controller.update_pickup_guardian(real_id, manual_name)
+                # self.guardian_controller.manual_pickup(real_id, manual_name)
+                if action == "DROP-OFF":
+                    # DO NOT update time again — only correct the guardian name
+                    self.guardian_controller.update_dropoff_guardian(real_id, manual_name)
+                else:
+                    # PICKUP truly needs a timestamp
+                    self.guardian_controller.manual_pickup(real_id, manual_name)
+
+
+
+                QtWidgets.QMessageBox.information(
+                    self,
+                    "Guardian Updated",
+                    f"Manual verification recorded:\nGuardian: {manual_name}"
+                )
+
+
+    # ----------------------------------------------------
+    # BACK TO CHOOSE MODE
+    # ----------------------------------------------------
+    def go_back(self):
+        from views.mode import ChooseModeWindow
+        self.mode = ChooseModeWindow(self.username)
+        self.mode.show()
+        self.close()

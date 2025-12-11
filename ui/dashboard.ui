@@ -64,11 +64,14 @@ color: white;</string>
        </property>
        <item>
         <widget class="QFrame" name="top">
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::Shape::StyledPanel</enum>
          </property>
          <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
+          <enum>QFrame::Shadow::Raised</enum>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <property name="spacing">
@@ -136,13 +139,15 @@ color: white;</string>
           <string notr="true">QPushButton{
 	Text-align: left;
 	padding: 10px 0px;
-}</string>
+}
+
+background-color: transparent;</string>
          </property>
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::Shape::StyledPanel</enum>
          </property>
          <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
+          <enum>QFrame::Shadow::Raised</enum>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <property name="spacing">
@@ -167,6 +172,16 @@ color: white;</string>
               <pointsize>15</pointsize>
              </font>
             </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
+            </property>
             <property name="text">
              <string>Change Username</string>
             </property>
@@ -189,7 +204,14 @@ color: white;</string>
              <string>trash</string>
             </property>
             <property name="styleSheet">
-             <string notr="true">color: white;</string>
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
             </property>
             <property name="text">
              <string>Change Password</string>
@@ -213,7 +235,14 @@ color: white;</string>
              <string>history</string>
             </property>
             <property name="styleSheet">
-             <string notr="true">color: white;</string>
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
             </property>
             <property name="text">
              <string>Change Home Pass</string>
@@ -237,7 +266,14 @@ color: white;</string>
              <string>profile</string>
             </property>
             <property name="styleSheet">
-             <string notr="true">color: white;</string>
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
             </property>
             <property name="text">
              <string>About EntrySafe</string>
@@ -257,6 +293,16 @@ color: white;</string>
               <pointsize>15</pointsize>
              </font>
             </property>
+            <property name="styleSheet">
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
+            </property>
             <property name="text">
              <string>Ask Help</string>
             </property>
@@ -268,10 +314,10 @@ color: white;</string>
        <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
-          <enum>Qt::Vertical</enum>
+          <enum>Qt::Orientation::Vertical</enum>
          </property>
          <property name="sizeType">
-          <enum>QSizePolicy::Expanding</enum>
+          <enum>QSizePolicy::Policy::Expanding</enum>
          </property>
          <property name="sizeHint" stdset="0">
           <size>
@@ -287,13 +333,15 @@ color: white;</string>
           <string notr="true">QPushButton{
 	Text-align: left;
 	padding: 10px 0px;
-}</string>
+}
+
+background-color: transparent;</string>
          </property>
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::Shape::StyledPanel</enum>
          </property>
          <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
+          <enum>QFrame::Shadow::Raised</enum>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <property name="spacing">
@@ -322,7 +370,14 @@ color: white;</string>
              <string>logout</string>
             </property>
             <property name="styleSheet">
-             <string notr="true">color: white;</string>
+             <string notr="true">QPushButton {
+    color: white;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
             </property>
             <property name="text">
              <string>  Log Out</string>
@@ -357,7 +412,8 @@ color: white;</string>
        <string/>
       </property>
       <property name="styleSheet">
-       <string notr="true">color: black;</string>
+       <string notr="true">color: black;
+</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <property name="spacing">
@@ -375,7 +431,7 @@ color: white;</string>
        <property name="bottomMargin">
         <number>0</number>
        </property>
-       <item alignment="Qt::AlignTop">
+       <item alignment="Qt::AlignmentFlag::AlignTop">
         <widget class="QFrame" name="topFrame">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -383,11 +439,14 @@ color: white;</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::Shape::StyledPanel</enum>
          </property>
          <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
+          <enum>QFrame::Shadow::Raised</enum>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_7">
           <property name="spacing">
@@ -407,11 +466,14 @@ color: white;</string>
           </property>
           <item>
            <widget class="QFrame" name="leftFrame">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
+             <enum>QFrame::Shape::StyledPanel</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+             <enum>QFrame::Shadow::Raised</enum>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_8">
              <property name="spacing">
@@ -470,7 +532,7 @@ color: white;</string>
           <item>
            <spacer name="horizontalSpacer">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
@@ -482,11 +544,14 @@ color: white;</string>
           </item>
           <item>
            <widget class="QFrame" name="frame_2">
+            <property name="styleSheet">
+             <string notr="true">background-color: transparent;</string>
+            </property>
             <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
+             <enum>QFrame::Shape::StyledPanel</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+             <enum>QFrame::Shadow::Raised</enum>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_9">
              <property name="spacing">
@@ -543,11 +608,14 @@ color: white;</string>
            <verstretch>0</verstretch>
           </sizepolicy>
          </property>
+         <property name="styleSheet">
+          <string notr="true">background-color: transparent;</string>
+         </property>
          <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
+          <enum>QFrame::Shape::StyledPanel</enum>
          </property>
          <property name="frameShadow">
-          <enum>QFrame::Raised</enum>
+          <enum>QFrame::Shadow::Raised</enum>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_6">
           <property name="spacing">
@@ -575,10 +643,10 @@ border: 2px solid grey;
 </string>
             </property>
             <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
+             <enum>QFrame::Shape::StyledPanel</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+             <enum>QFrame::Shadow::Raised</enum>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <property name="spacing">
@@ -604,7 +672,15 @@ border: 2px solid grey;
                 </font>
                </property>
                <property name="styleSheet">
-                <string notr="true">border: none;</string>
+                <string notr="true">QPushButton {
+    border: none;
+	background: transparent;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
                </property>
                <property name="text">
                 <string>Enroll Student</string>
@@ -624,10 +700,10 @@ border: 2px solid grey;
 </string>
             </property>
             <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
+             <enum>QFrame::Shape::StyledPanel</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+             <enum>QFrame::Shadow::Raised</enum>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_4">
              <property name="spacing">
@@ -653,7 +729,15 @@ border: 2px solid grey;
                 </font>
                </property>
                <property name="styleSheet">
-                <string notr="true">border: none;</string>
+                <string notr="true">QPushButton {
+    border: none;
+	background: transparent;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
                </property>
                <property name="text">
                 <string>Attendance</string>
@@ -673,10 +757,10 @@ border: 2px solid grey;
 </string>
             </property>
             <property name="frameShape">
-             <enum>QFrame::StyledPanel</enum>
+             <enum>QFrame::Shape::StyledPanel</enum>
             </property>
             <property name="frameShadow">
-             <enum>QFrame::Raised</enum>
+             <enum>QFrame::Shadow::Raised</enum>
             </property>
             <layout class="QHBoxLayout" name="horizontalLayout_5">
              <property name="spacing">
@@ -702,7 +786,15 @@ border: 2px solid grey;
                 </font>
                </property>
                <property name="styleSheet">
-                <string notr="true">border: none;</string>
+                <string notr="true">QPushButton {
+    border: none;
+	background: transparent;
+}
+
+QPushButton:hover {
+    color: #8b2fdb;
+}
+</string>
                </property>
                <property name="text">
                 <string>Guardian Logs</string>

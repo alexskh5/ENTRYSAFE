@@ -1,64 +1,3 @@
-# import sys
-# from os import path
-# from PyQt6 import QtWidgets, uic
-# from controller.LoginController import LoginController
-
-
-# BASE_DIR = path.dirname(path.abspath(__file__))
-# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-
-# UI_FILE = path.join(PROJECT_ROOT, "ui", "login.ui")
-
-
-# class LoginWindow(QtWidgets.QMainWindow):
-#     def __init__(self):
-#         super().__init__()
-#         uic.loadUi(UI_FILE, self)
-
-#         # Inputs
-#         self.userInput = self.findChild(QtWidgets.QLineEdit, "userInput")
-#         self.passInput = self.findChild(QtWidgets.QLineEdit, "passInput")
-
-#         # Buttons
-#         self.loginBtn = self.findChild(QtWidgets.QPushButton, "loginBtn")
-#         self.createBtn = self.findChild(QtWidgets.QPushButton, "createBtn")
-#         self.forgotBtn = self.findChild(QtWidgets.QPushButton, "forgotBtn")
-
-#         self.controller = LoginController()
-
-#         # Connect
-#         self.loginBtn.clicked.connect(self.handle_login)
-#         self.createBtn.clicked.connect(self.go_signup)
-#         self.forgotBtn.clicked.connect(self.go_forgot)
-
-
-#     def handle_login(self):
-#         username = self.userInput.text().strip()
-#         password = self.passInput.text().strip()
-
-#         ok, data = self.controller.login(username, password)
-
-#         if ok:
-#             from views.choose_mode import ChooseModeWindow  # ← IMPORT INSIDE
-#             self.close()
-#             self.mode = ChooseModeWindow()
-#             self.mode.show()
-
-#     def go_signup(self):
-#         from views.signup import SignupWindow  # ← IMPORT INSIDE
-#         self.close()
-#         self.signup = SignupWindow()
-#         self.signup.show()
-
-
-#     def go_forgot(self):
-#         from views.forgot_password import ForgotPasswordWindow  # ← IMPORT INSIDE
-#         self.close()
-#         self.x = ForgotPasswordWindow()
-#         self.x.show()
-
-
-
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
@@ -79,6 +18,14 @@ class LoginWindow(QtWidgets.QMainWindow):
 
         # Load UI
         uic.loadUi(UI_FILE, self)
+        
+        self.resize(1250, 800)
+
+        # --- center window ---
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        win = self.frameGeometry()
+        win.moveCenter(screen.center())
+        self.move(win.topLeft())
 
         # Background setup
         cw = self.findChild(QtWidgets.QWidget, "centralwidget")
@@ -161,7 +108,7 @@ class LoginWindow(QtWidgets.QMainWindow):
         ok, data = self.controller.login(username, password)
 
         if ok:
-            from views.choose_mode import ChooseModeWindow
+            from views.mode import ChooseModeWindow
             self.close()
             self.mode = ChooseModeWindow(username=username)
             self.mode.show()

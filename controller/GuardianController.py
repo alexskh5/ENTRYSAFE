@@ -1,10 +1,11 @@
 import os
-import base64
 import numpy as np
-from database.connection import Database
+import psycopg2
 from psycopg2.extras import RealDictCursor
+from database.connection import Database
 
 UPLOAD_DIR = "uploads/guardians"
+
 
 class GuardianController:
     def __init__(self):
@@ -15,55 +16,144 @@ class GuardianController:
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR)
 
-    # -------------------------
-    # Helper: encode face vector
-    # -------------------------
+    # ===============================================
+    # Encode / Decode face embedding
+    # ===============================================
     def encode_face(self, embedding):
-        """Convert numpy array → base64 bytea for DB."""
         arr = np.array(embedding, dtype=np.float32)
-        return base64.b64encode(arr.tobytes())
+        return psycopg2.Binary(arr.tobytes())
 
     def decode_face(self, bytea_data):
         if bytea_data is None:
             return None
-        decoded = base64.b64decode(bytea_data)
-        return np.frombuffer(decoded, dtype=np.float32)
+        return np.frombuffer(bytea_data, dtype=np.float32)
 
-    # -------------------------
-    # Insert guardian
-    # -------------------------
-    def insert_guardian(self, studid, name, dob, image_path, encoding):
+    # ===============================================
+    # INSERT Guardian  (NOW: studentid INT, not studid code)
+    # ===============================================
+    def insert_guardian(self, studentid, name, dob, image_path, encoding):
+        print("🔥 INSERT GUARDIAN — Encoding type:", type(encoding))
         self.cursor.execute("""
-            CALL add_guardian(%s, %s, %s, %s, %s);
-        """, (studid, name, dob, image_path, encoding))
-
+            CALL add_guardian(%s, %s, %s, %s, %s::bytea);
+        """, (studentid, name, dob, image_path, encoding))
         self.conn.commit()
         return True
 
-    # -------------------------
-    # Update guardian
-    # -------------------------
+    # ===============================================
+    # UPDATE Guardian
+    # ===============================================
     def update_guardian(self, guardianid, name, dob, image_path, encoding):
         self.cursor.execute("""
-            CALL update_guardian(%s, %s, %s, %s, %s);
+            CALL update_guardian(%s, %s, %s, %s, %s::bytea);
         """, (guardianid, name, dob, image_path, encoding))
-
         self.conn.commit()
         return True
 
-    # -------------------------
-    # Delete guardian
-    # -------------------------
+    # ===============================================
+    # DELETE Guardian
+    # ===============================================
     def delete_guardian(self, guardianid):
-        self.cursor.execute("CALL delete_guardian(%s)", (guardianid,))
+        self.cursor.execute("CALL delete_guardian(%s);", (guardianid,))
         self.conn.commit()
         return True
 
-    # -------------------------
-    # Get guardians for a student
-    # -------------------------
-    def get_guardians_for_student(self, studid):
+    # ===============================================
+    # GET Guardians for student (by studentid INT)
+    # ===============================================
+    def get_guardians_for_student(self, studentid):
         self.cursor.execute("""
             SELECT * FROM get_guardians_for_student(%s);
-        """, (studid,))
+        """, (studentid,))
         return self.cursor.fetchall()
+
+    # ===============================================
+    # Attendance / Logs by STUDENTID
+    # ===============================================
+    def call_dropoff(self, studentid, guardian_name, is_manual):
+        self.cursor.execute(
+            "CALL mark_dropoff(%s, %s, %s)",
+            (studentid, guardian_name, is_manual)
+        )
+        self.conn.commit()
+
+    def call_pickup(self, studentid, guardian_name, is_manual):
+        self.cursor.execute(
+            "CALL mark_pickup(%s, %s, %s)",
+            (studentid, guardian_name, is_manual)
+        )
+        self.conn.commit()
+
+    def get_today_attendance(self, studentid: int):
+        self.cursor.execute(
+            """
+            SELECT date, dropoff_time, pickup_time
+            FROM attendance
+            WHERE studentid = %s AND date = CURRENT_DATE
+            LIMIT 1;
+            """,
+            (studentid,)
+        )
+        return self.cursor.fetchone()
+
+    def update_dropoff_guardian(self, studentid, name):
+        sql = """
+            UPDATE logs
+            SET dropoff_by = %s
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """
+        self.cursor.execute(sql, (name, studentid))
+        self.conn.commit()
+
+    def update_pickup_guardian(self, studentid, name):
+        sql = """
+            UPDATE logs
+            SET pickup_by = %s
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """
+        self.cursor.execute(sql, (name, studentid))
+        self.conn.commit()
+
+    def get_guardian_by_id(self, guardianid):
+        self.cursor.execute("""
+            SELECT guardianid, studentid, guardianname, guardiandob,
+                   face_image_path, face_encoding
+            FROM guardians
+            WHERE guardianid = %s
+            LIMIT 1;
+        """, (guardianid,))
+        return self.cursor.fetchone()
+
+    def manual_dropoff(self, studentid, guardian_name):
+        # update attendance time
+        self.cursor.execute("""
+            UPDATE attendance
+            SET dropoff_time = NOW()
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """, (studentid,))
+
+        # update logs guardian name
+        self.cursor.execute("""
+            UPDATE logs
+            SET dropoff_by = %s
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """, (guardian_name, studentid))
+
+        self.conn.commit()
+
+    
+    def manual_pickup(self, studentid, guardian_name):
+        # update attendance time
+        self.cursor.execute("""
+            UPDATE attendance
+            SET pickup_time = NOW()
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """, (studentid,))
+
+        # update logs guardian name
+        self.cursor.execute("""
+            UPDATE logs
+            SET pickup_by = %s
+            WHERE studentid = %s AND date = CURRENT_DATE;
+        """, (guardian_name, studentid))
+
+        self.conn.commit()

@@ -14,12 +14,25 @@ class HomePassController:
         except Exception:
             return False
 
-    def update_home_pass(self, username, new_homepass):
+    def change_homepass_with_current(self, username, current_pass, new_pass):
         try:
             cur = self.conn.cursor()
-            cur.execute("CALL update_home_pass(%s, %s);", (username, new_homepass))
+            cur.execute(
+                "CALL change_user_homepass(%s, %s, %s)",
+                (username, current_pass, new_pass)
+            )
             self.conn.commit()
-            return True
-        except Exception:
+            return True, "Home pass updated."
+        except Exception as e:
             self.conn.rollback()
-            return False
+            return False, str(e).splitlines()[0]
+
+    def change_homepass_with_security(self, username, new_pass):
+        try:
+            cur = self.conn.cursor()
+            cur.execute("CALL update_home_pass(%s, %s);", (username, new_pass))
+            self.conn.commit()
+            return True, "Home pass updated."
+        except Exception as e:
+            self.conn.rollback()
+            return False, str(e).splitlines()[0]

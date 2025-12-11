@@ -25,6 +25,16 @@ class LandingWindow(QtWidgets.QMainWindow):
         super().__init__()
         uic.loadUi(UI_FILE, self)
 
+        
+        self.resize(1250, 800)
+
+        # --- center window ---
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        win = self.frameGeometry()
+        win.moveCenter(screen.center())
+        self.move(win.topLeft())
+        
+        
         # central widget & background pattern same as other views
         cw = self.findChild(QtWidgets.QWidget, "centralwidget")
 
@@ -113,12 +123,3 @@ class LandingWindow(QtWidgets.QMainWindow):
             )
             self.logo_label.setPixmap(scaled_logo)
 
-
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    win = LandingWindow()
-    win.show()
-    sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()

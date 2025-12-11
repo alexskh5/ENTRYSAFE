@@ -1,10 +1,11 @@
-
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableWidgetItem
+
+from controller.AttendanceController import AttendanceController
 
 BASE_DIR = path.dirname(path.abspath(__file__))
 PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
@@ -14,131 +15,118 @@ BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
 
 
 class AttendanceWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, username):
         super().__init__()
+        self.username = username
 
-        # Load UI into QMainWindow
+
         uic.loadUi(UI_FILE, self)
+        
+        self.resize(1250, 800)
 
+        # --- center window ---
+        screen = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        win = self.frameGeometry()
+        win.moveCenter(screen.center())
+        self.move(win.topLeft())
 
-        # --- Background image using QLabel (behind everything) ---
+        # Controller
+        self.attendance_controller = AttendanceController()
+
+        # Background setup
         cw = self.findChild(QtWidgets.QWidget, "centralwidget")
         self._bg_label = QtWidgets.QLabel(cw)
         self._bg_pix = QPixmap(BG_FILE)
         self._bg_label.setPixmap(self._bg_pix)
         self._bg_label.setScaledContents(False)
-        self._bg_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
         self._bg_label.lower()
         self._bg_label.resize(cw.size())
 
-        # find table widget 
-        self.table = (
-            self.findChild(QtWidgets.QTableWidget, "attendanceTable")
-        )
+        # Search bar
+        self.searchStudent = self.findChild(QtWidgets.QLineEdit, "searchStudent")
+        if self.searchStudent:
+            self.searchStudent.textChanged.connect(self.load_attendance)
 
-        if self.table is None:
-            print("Warning: table widget not found. Check objectName in attendance.ui")
-        else:
-            if self.table.columnCount() < 3:
-                self.table.setColumnCount(3)
-                self.table.setHorizontalHeaderLabels(["DATE", "STUDENT ID", "STUDENT NAME"])
+        # Table
+        self.table = self.findChild(QtWidgets.QTableWidget, "attendanceTable")
 
-            # make table responsive and style it
+        if self.table:
+            self.table.setColumnCount(3)
+            self.table.setHorizontalHeaderLabels(["DATE", "STUDENT ID", "STUDENT NAME"])
             self.setup_table()
 
-            # add sample rows so you can see how it looks
-            sample = [
-                {"date": "10-30-2025", "student_id": "S001", "student_name": "Name of Student"},
-                {"date": "10-30-2025", "student_id": "S001", "student_name": "Name of Student"},
-                {"date": "10-30-2025", "student_id": "S001", "student_name": "Name of Student"},
-                {"date": "10-30-2025", "student_id": "S001", "student_name": "Name of Student"},
-                {"date": "10-30-2025", "student_id": "S001", "student_name": "Name of Student"},
-            ]
-            for s in sample:
-                self.add_row(s["date"], s["student_id"], s["student_name"])
+        # Load data initially
+        self.load_attendance()
 
-
-    # ----------------------------------------------------------------------------
-    # Function to add a row 
-    def add_row(self, date, student_id, student_name):
+    
+        btn = self.findChild(QtWidgets.QPushButton, "backToDashboardBtn")
+        if btn:
+            btn.clicked.connect(self.go_to_dashboard)
+    
+    # ------------------------------------------------------------------------
+    # Load attendance records from DB
+    # ------------------------------------------------------------------------
+    def load_attendance(self):
         if self.table is None:
             return
 
-        row = self.table.rowCount()
-        self.table.insertRow(row)
-
-        # DATE
-        date_item = QTableWidgetItem(date)
-        date_item.setFlags(date_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
-        date_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.table.setItem(row, 0, date_item)
-
-        # STUDENT ID
-        student_item = QTableWidgetItem(student_id)
-        student_item.setFlags(student_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
-        student_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.table.setItem(row, 1, student_item)
-
-        # STUDENT NAME
-        drop_item = QTableWidgetItem(student_name)
-        drop_item.setFlags(drop_item.flags() ^ Qt.ItemFlag.ItemIsEditable)
-        drop_item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.table.setItem(row, 2, drop_item)
+        term = self.searchStudent.text().strip() if self.searchStudent else ""
+        records = self.attendance_controller.search_attendance(self.username, term)
 
 
+        self.table.setRowCount(0)
 
-    # ----------------------------------------------------------------------------
-    # function to make the table responsive / stretch columns evenly
+        for r in records:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+
+            # DATE (with time)
+            item_date = QTableWidgetItem(str(r["date_display"]))
+            item_date.setFlags(item_date.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            item_date.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 0, item_date)
+
+            # STUDENT ID
+            item_id = QTableWidgetItem(r["studid"])
+            item_id.setFlags(item_id.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            item_id.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 1, item_id)
+
+            # STUDENT NAME
+            item_name = QTableWidgetItem(r["studentname"])
+            item_name.setFlags(item_name.flags() ^ Qt.ItemFlag.ItemIsEditable)
+            item_name.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            self.table.setItem(row, 2, item_name)
+
+
+    # ------------------------------------------------------------------------
+    # Table design / responsive layout
+    # ------------------------------------------------------------------------
     def setup_table(self):
-        if self.table is None:
-            return
-
-        try:
-            body_font = self.table.font()
-            body_font.setPointSize(13)
-            self.table.setFont(body_font)
-        except Exception:
-            pass
-
         header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
 
-        # ---- Header font ----
-        try:
-            header_font = header.font()
-            header_font.setPointSize(13)   
-            header_font.setBold(True)      
-            header.setFont(header_font)
-            header.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        except Exception:
-            pass
+        body_font = self.table.font()
+        body_font.setPointSize(15)
+        self.table.setFont(body_font)
 
-        # ---- 3 even columns ----
-        try:
-            header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
-        except Exception:
-            pass
+        header_font = header.font()
+        header_font.setPointSize(13)
+        header_font.setBold(True)
+        header.setFont(header_font)
+        header.setDefaultAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
 
-        # Row + header heights
-        try:
-            self.table.verticalHeader().setDefaultSectionSize(54)
-        except Exception:
-            pass
-        try:
-            self.table.horizontalHeader().setFixedHeight(48)
-        except Exception:
-            pass
 
-        # Hide vertical row numbers
-        try:
-            self.table.verticalHeader().setVisible(False)
-        except Exception:
-            pass
+        self.table.verticalHeader().setDefaultSectionSize(54)
+        self.table.horizontalHeader().setFixedHeight(48)
+        self.table.verticalHeader().setVisible(False)
 
-        # table style
         self.table.setStyleSheet("""
             QTableWidget {
-                gridline-color: transparent;
                 border: none;
+                gridline-color: transparent;
             }
             QTableWidget::item {
                 border: none;
@@ -151,12 +139,11 @@ class AttendanceWindow(QtWidgets.QMainWindow):
             }
         """)
 
-
-
-    # ----------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
+    # Background scaling
+    # ------------------------------------------------------------------------
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Resize background to fill area
         try:
             cw = self.findChild(QtWidgets.QWidget, "centralwidget")
             scaled_bg = self._bg_pix.scaled(
@@ -166,17 +153,13 @@ class AttendanceWindow(QtWidgets.QMainWindow):
             )
             self._bg_label.setPixmap(scaled_bg)
             self._bg_label.resize(cw.size())
-            self._bg_label.move(0, 0)
-        except Exception:
+        except:
             pass
+    
+    
+    def go_to_dashboard(self):
+        from views.dashboard import AdminWindow  # safe import
+        self.dashboard = AdminWindow(self.username)
+        self.dashboard.show()
+        self.close()
 
-
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    win = AttendanceWindow()
-    win.show()
-    sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

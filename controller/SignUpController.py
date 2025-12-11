@@ -24,3 +24,15 @@ class SignupController:
         except Exception as e:
             self.conn.rollback()
             return False, str(e)
+
+    def username_exists(self, username):
+        """
+        Returns True if username already exists (case-insensitive), else False.
+        """
+        cur = self.conn.cursor()
+        cur.execute(
+            "SELECT 1 FROM users WHERE LOWER(username) = LOWER(%s) LIMIT 1;",
+            (username,)
+        )
+        row = cur.fetchone()
+        return row is not None

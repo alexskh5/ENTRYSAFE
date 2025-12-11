@@ -74,12 +74,13 @@ class ForgotPasswordWindow(QtWidgets.QMainWindow):
             QtWidgets.QMessageBox.warning(self, "Mismatch", "Passwords do not match.")
             return
 
-        if self.ctrl.update_password(new):
-            QtWidgets.QMessageBox.information(self, "Success", "Password updated!")
+        success, msg = self.ctrl.update_password(self.username, new)
+
+        if success:
+            QtWidgets.QMessageBox.information(self, "Success", msg)
             self.go_login()
         else:
-            QtWidgets.QMessageBox.warning(self, "Error", "Update failed.")
-
+            QtWidgets.QMessageBox.warning(self, "Error", msg)
 
     def go_login(self):
         from views.login import LoginWindow
