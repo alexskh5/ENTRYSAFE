@@ -1,7 +1,7 @@
 import sys
 from os import path
 from PyQt6 import QtWidgets, uic
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt
 from controller.LoginController import LoginController
 
@@ -11,6 +11,10 @@ PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 UI_FILE = path.join(PROJECT_ROOT, "ui", "login.ui")
 LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
 BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+
+# eye icons
+EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
+EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
 
 class LoginWindow(QtWidgets.QMainWindow):
     def __init__(self):
@@ -65,6 +69,13 @@ class LoginWindow(QtWidgets.QMainWindow):
 
         self.controller = LoginController()
 
+        # ----- PASSWORD TOGGLE SETUP -----
+        self.passInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+        self.togglePassBtn.setIcon(QIcon(EYE_OFF))
+        self.togglePassBtn.setFlat(True)
+        self.togglePassBtn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.togglePassBtn.clicked.connect(self.toggle_password)
+
         # Button Actions
         self.loginBtn.clicked.connect(self.handle_login)
         self.createBtn.clicked.connect(self.go_signup)
@@ -75,6 +86,14 @@ class LoginWindow(QtWidgets.QMainWindow):
         self.ABS_MAX_W = 800
         self.ABS_MIN_W = 120
 
+    # ---------- SHOW / HIDE PASSWORD ----------
+    def toggle_password(self):
+        if self.passInput.echoMode() == QtWidgets.QLineEdit.EchoMode.Password:
+            self.passInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Normal)
+            self.togglePassBtn.setIcon(QIcon(EYE_ON))
+        else:
+            self.passInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+            self.togglePassBtn.setIcon(QIcon(EYE_OFF))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

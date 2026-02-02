@@ -105,7 +105,7 @@ Guardian Arrives → System Scans Face
 pip install opencv-python
 pip install face_recognition
 pip install PyQt6
-
+```
 
 Run the system:
 
@@ -121,4 +121,4 @@ Mangubat, Khezy Gwen    khezmangubat@gmail.com
 Lim, Phoebe Gale        phoebegalelim1@gmail.com
 Booc, Pearl Shene       boocshene17@gmail.com
 Igot, Kimberly Marie    igotkimberlymarie@gmail.com
-```
+

@@ -10,6 +10,9 @@ BASE_DIR = path.dirname(path.abspath(__file__))
 PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 UI_FILE = path.join(PROJECT_ROOT, "ui", "mode.ui")
 
+# eye icons
+EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
+EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
 
 class ChooseModeWindow(QtWidgets.QMainWindow):
     def __init__(self, username):
@@ -48,6 +51,14 @@ class ChooseModeWindow(QtWidgets.QMainWindow):
 
         self.homePassInput = self.findChild(QtWidgets.QLineEdit, "homePassInput")
         self.forgotPassBtn = self.findChild(QtWidgets.QPushButton, "forgotPassBtn")
+        
+        # ============= PASSWORD TOGGLE SETUP =============
+        if self.homePassInput and self.toggleHomePassBtn:
+            self.homePassInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+            self.toggleHomePassBtn.setIcon(QtGui.QIcon(EYE_OFF))
+            self.toggleHomePassBtn.setFlat(True)
+            self.toggleHomePassBtn.setCursor(QtCore.Qt.CursorShape.PointingHandCursor)
+            self.toggleHomePassBtn.clicked.connect(self.toggle_home_pass)
 
         # ============= STATES =============
         self.home_expanded = False
@@ -90,6 +101,17 @@ class ChooseModeWindow(QtWidgets.QMainWindow):
 
         # Start collapsed
         self.collapse_home_card()
+
+    # ------------------------------------------------------
+    # SHOW / HIDE HOME PASS
+    # ------------------------------------------------------
+    def toggle_home_pass(self):
+        if self.homePassInput.echoMode() == QtWidgets.QLineEdit.EchoMode.Password:
+            self.homePassInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Normal)
+            self.toggleHomePassBtn.setIcon(QtGui.QIcon(EYE_ON))
+        else:
+            self.homePassInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
+            self.toggleHomePassBtn.setIcon(QtGui.QIcon(EYE_OFF))
 
     # ------------------------------------------------------
     # HOME CARD SIZES

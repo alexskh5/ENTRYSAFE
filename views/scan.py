@@ -25,6 +25,9 @@ class CameraCapture(QDialog):
         super().__init__()
         self.setWindowTitle("Scanning...")
         self.resize(600, 500)
+        
+        self.stable_frames = 0
+        self.auto_captured = False
 
         self.video_label = QLabel()
         self.video_label.setFixedSize(560, 420)
@@ -33,12 +36,22 @@ class CameraCapture(QDialog):
         layout.addWidget(self.video_label)
         self.setLayout(layout)
 
-        self.cap = self.initialize_camera()
+        
+        # Initialize camera
+        try:
+            self.cap = self.initialize_camera()
+        except RuntimeError as e:
+            QtWidgets.QMessageBox.critical(self, "Camera Error", str(e))
+            self.reject()
+            return
+
+        
+        # self.cap = self.initialize_camera()
         self.current_frame = None
         self.last_face_location = None
         self.motion_detected = False
         self.captured_encoding = None
-        self.auto_captured = False
+        # self.auto_captured = False
 
         # UI camera feed refresh
         self.render_timer = QTimer()
@@ -47,8 +60,27 @@ class CameraCapture(QDialog):
 
         # Motion + face detection loop
         self.detect_timer = QTimer()
-        self.detect_timer.timeout.connect(self.detect_face_and_capture)
+        # self.detect_timer.timeout.connect(self.detect_face_and_capture)
+        self.detect_timer.timeout.connect(self.detect_and_validate_face)
         self.detect_timer.start(500)
+        
+        # =========================
+        # TIMEOUT FOR SCAN ERROR
+        # =========================
+        self.timeout_timer = QTimer()
+        self.timeout_timer.setSingleShot(True)
+        self.timeout_timer.timeout.connect(self.face_timeout_error)
+        self.timeout_timer.start(10000)  # 10 seconds to detect a face
+
+    def face_timeout_error(self):
+        if not self.auto_captured:
+            QtWidgets.QMessageBox.warning(
+                self,
+                "Scan Timeout",
+                "Unable to detect a face. Please ensure your face is visible and try again."
+            )
+            self.cleanup_camera()
+            self.reject()
 
     def initialize_camera(self):
         import platform
@@ -85,57 +117,159 @@ class CameraCapture(QDialog):
         h, w, ch = rgb.shape
         qimg = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
         self.video_label.setPixmap(QPixmap.fromImage(qimg))
+        
+    
+    # -------------------------------------
+    # SECURITY HELPERS
+    # -------------------------------------
+    def face_centered(self, face, frame_width):
+        top, right, bottom, left = face
+        face_center = (left + right) // 2
+        return abs(face_center - frame_width // 2) < 70
 
-    def detect_face_and_capture(self):
+    def forehead_visible(self, face):
+        top, right, bottom, left = face
+        return (bottom - top) > 180
+
+    def eyes_clear(self, frame, face):
+        top, right, bottom, left = face
+        face_img = frame[top:bottom, left:right]
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 60, 120)
+        edge_ratio = np.sum(edges > 0) / edges.size
+        return edge_ratio < 0.13
+    
+    
+
+    # def detect_face_and_capture(self):
+    #     if self.auto_captured or self.current_frame is None:
+    #         return
+
+    #     small = cv2.resize(self.current_frame, (0,0), fx=0.5, fy=0.5)
+    #     rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+
+    #     faces = face_recognition.face_locations(rgb_small, model="cnn")
+    #     if not faces:
+    #         return
+
+    #     top, right, bottom, left = faces[0]
+    #     top *= 2; right *= 2; bottom *= 2; left *= 2
+
+    #     if self.last_face_location:
+    #         old_top, old_right, old_bottom, old_left = self.last_face_location
+    #         movement = abs(top - old_top) + abs(left - old_left)
+    #         if movement > 25:
+    #             self.motion_detected = True
+
+    #     self.last_face_location = (top, right, bottom, left)
+        
+    #     # Proceed automatically when face moves
+    #     if self.motion_detected:
+    #         self.auto_captured = True
+    #         self.capture_frame()
+    
+    # -------------------------------------
+    # DETECT + VALIDATE
+    # -------------------------------------
+    def detect_and_validate_face(self):
         if self.auto_captured or self.current_frame is None:
             return
 
-        small = cv2.resize(self.current_frame, (0,0), fx=0.5, fy=0.5)
+        # Resize to 1/4 for faster processing
+        small = cv2.resize(self.current_frame, (0, 0), fx=0.25, fy=0.25)
         rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
 
+        # Detect faces
         faces = face_recognition.face_locations(rgb_small, model="hog")
         if not faces:
+            self.stable_frames = 0
             return
 
+        # Scale coordinates back to original frame
         top, right, bottom, left = faces[0]
-        top *= 2; right *= 2; bottom *= 2; left *= 2
+        top *= 4
+        right *= 4
+        bottom *= 4
+        left *= 4
+        face = (top, right, bottom, left)
 
+        h, w, _ = self.current_frame.shape
+
+        # Check if face is centered (optional: widen threshold if needed)
+        if not self.face_centered(face, w):
+            self.stable_frames = 0
+            return
+
+        # Optional: skip forehead/eyes checks for now to ensure detection works
+        # if not self.forehead_visible(face):
+        #     self.stable_frames = 0
+        #     return
+
+        # if not self.eyes_clear(self.current_frame, face):
+        #     self.stable_frames = 0
+        #     return
+
+        # Check if face is stable (relax movement threshold to 15 pixels)
         if self.last_face_location:
-            old_top, old_right, old_bottom, old_left = self.last_face_location
-            movement = abs(top - old_top) + abs(left - old_left)
-            if movement > 25:
-                self.motion_detected = True
+            ot, or_, ob, ol = self.last_face_location
+            movement = abs(top - ot) + abs(left - ol)
+            if movement < 15:  # relaxed from 5 → more tolerant
+                self.stable_frames += 1
+            else:
+                self.stable_frames = 0
 
-        self.last_face_location = (top, right, bottom, left)
+        self.last_face_location = face
 
-        # Proceed automatically when face moves
-        if self.motion_detected:
-            self.auto_captured = True
+        # If face stable for 3 consecutive frames → capture
+        if self.stable_frames >= 3:
             self.capture_frame()
 
     def capture_frame(self):
+        # rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
+        # faces = face_recognition.face_locations(rgb, model="cnn")
+
+        # if not faces:
+        #     QtWidgets.QMessageBox.warning(self, "Error", "Face lost, try again.")
+        #     self.auto_captured = False
+        #     return
+
+        # self.captured_encoding = face_recognition.face_encodings(
+        #     rgb, faces, model="large"
+        # )[0]
+
+        # self.cleanup_camera()
+        # self.accept()
         rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
         faces = face_recognition.face_locations(rgb, model="hog")
 
         if not faces:
-            QtWidgets.QMessageBox.warning(self, "Error", "Face lost, try again.")
-            self.auto_captured = False
             return
 
-        self.captured_encoding = face_recognition.face_encodings(
-            rgb, faces, model="large"
-        )[0]
+        encodings = face_recognition.face_encodings(rgb, faces, model="large")
+        if not encodings:
+            return
+
+        self.captured_encoding = np.mean(encodings, axis=0)
+        self.auto_captured = True
+
+        # Stop timeout timer — face was captured
+        self.timeout_timer.stop()
 
         self.cleanup_camera()
         self.accept()
 
+    # def cleanup_camera(self):
+    #     if hasattr(self, "render_timer"):
+    #         self.render_timer.stop()
+    #     if hasattr(self, "detect_timer"):
+    #         self.detect_timer.stop()
+    #     if self.cap:
+    #         self.cap.release()
+    
     def cleanup_camera(self):
-        if hasattr(self, "render_timer"):
-            self.render_timer.stop()
-        if hasattr(self, "detect_timer"):
-            self.detect_timer.stop()
-        if self.cap:
-            self.cap.release()
+        self.render_timer.stop()
+        self.detect_timer.stop()
+        self.cap.release()
 
     def closeEvent(self, event):
         self.cleanup_camera()
@@ -241,264 +375,932 @@ class ScanWindow(QtWidgets.QMainWindow):
 
     
 
+    # def handle_student_click(self, item: QListWidgetItem):
+    #     if item is None:
+    #         return
+
+    #     # ----------------------------------------------------
+    #     # GET STUDENT BY CODE (studid like "S001")
+    #     # ----------------------------------------------------
+    #     studid = item.data(Qt.ItemDataRole.UserRole)
+    #     if not studid:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "Invalid student selected")
+    #         return
+
+    #     student = next((s for s in self.all_students if s["studid"] == studid), None)
+    #     if student is None:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "Student not found")
+    #         return
+
+    #     fullname = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}".strip()
+
+    #     # ----------------------------------------------------
+    #     # OPEN CAMERA + CAPTURE FACE
+    #     # ----------------------------------------------------
+    #     cam = CameraCapture()
+    #     result = cam.exec()
+
+    #     if result != QtWidgets.QDialog.DialogCode.Accepted:
+    #         return
+
+    #     captured = cam.captured_encoding
+    #     frame = cam.current_frame
+
+    #     if captured is None:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "No face captured")
+    #         return
+
+    #     # ----------------------------------------------------
+    #     # SECURITY CHECK: FACE SIZE MUST BE LARGE ENOUGH
+    #     # ----------------------------------------------------
+    #     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #     faces = face_recognition.face_locations(rgb)
+
+    #     if not faces:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "No face detected")
+    #         return
+
+    #     top, right, bottom, left = faces[0]
+    #     face_width = right - left
+    #     face_height = bottom - top
+
+    #     # Prevent scanning small printed photos or far faces
+    #     if face_width < 150 or face_height < 150:
+    #         QtWidgets.QMessageBox.warning(
+    #             self,
+    #             "Too Far",
+    #             "Please move closer to the camera."
+    #         )
+    #         return
+
+    #     # ----------------------------------------------------
+    #     # GET REAL studentid (INT PK)
+    #     # ----------------------------------------------------
+    #     student_db = self.student_controller.get_student(self.username, studid)
+    #     if not student_db:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "Student not found in DB")
+    #         return
+
+    #     real_id = student_db["studentid"]   # <--- correct primary key
+
+    #     # ----------------------------------------------------
+    #     # LOAD GUARDIANS (STUDENT-SPECIFIC)
+    #     # ----------------------------------------------------
+    #     guardians = self.guardian_controller.get_guardians_for_student(real_id)
+
+    #     if not guardians:
+    #         QtWidgets.QMessageBox.warning(self, "No Guardians", "No guardians registered")
+    #         return
+
+    #     # Convert bytea → numpy arrays
+    #     known_encodings = []
+    #     names = []
+
+    #     for g in guardians:
+    #         enc_bytes = g.get("face_encoding")
+    #         if enc_bytes:
+    #             try:
+    #                 decoded = self.guardian_controller.decode_face(enc_bytes)
+    #                 if decoded is not None:
+    #                     known_encodings.append(decoded)
+    #                     names.append(g["guardianname"])
+    #             except Exception as e:
+    #                 print("Decode error:", e)
+
+    #     if not known_encodings:
+    #         QtWidgets.QMessageBox.warning(self, "Error", "No stored face encodings")
+    #         return
+
+        
+    #     distances = face_recognition.face_distance(known_encodings, captured)
+    #     best_idx = int(np.argmin(distances))
+    #     best_distance = float(distances[best_idx])
+
+    #     THRESHOLD = 0.40  # strict + makeup-friendly
+
+    #     if best_distance <= THRESHOLD:
+    #         guardian_name = names[best_idx]
+    #         status = self.guardian_controller.get_today_attendance(real_id)
+
+    #         if status is None or status["dropoff_time"] is None:
+    #             self.guardian_controller.call_dropoff(real_id, guardian_name, True)
+    #             QtWidgets.QMessageBox.information(self, "Drop-off Recorded",
+    #                 f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: DROP-OFF")
+    #             return
+
+    #         if status["pickup_time"] is None:
+    #             self.guardian_controller.call_pickup(real_id, guardian_name, True)
+    #             QtWidgets.QMessageBox.information(self, "Pick-up Recorded",
+    #                 f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: PICK-UP")
+    #             return
+
+    #         QtWidgets.QMessageBox.warning(self, "Already Completed",
+    #             f"Student: {fullname}\nBoth DROP-OFF and PICK-UP already recorded today.")
+    #         return
+
+
+    #     # ----------------------------------------------------
+    #     # ========== UNVERIFIED BRANCH ==========
+    #     # ----------------------------------------------------
+    #     emergency_contact = student.get("studcontact") or "No contact number stored"
+
+    #     status = self.guardian_controller.get_today_attendance(real_id)
+
+    #     if status is None or status["dropoff_time"] is None:
+    #         # First log → DROP-OFF
+    #         self.guardian_controller.call_dropoff(real_id, "UNVERIFIED GUARDIAN", False)
+    #         action = "DROP-OFF"
+    #     elif status["pickup_time"] is None:
+    #         # Follow-up log → PICK-UP
+    #         self.guardian_controller.call_pickup(real_id, "UNVERIFIED GUARDIAN", False)
+    #         action = "PICK-UP"
+    #     else:
+    #         QtWidgets.QMessageBox.warning(
+    #             self,
+    #             "Already Completed",
+    #             f"Student: {fullname}\nBoth DROP-OFF and PICK-UP are already recorded today."
+    #         )
+    #         return
+
+
+    #     # ----------------------------------------------------
+    #     # MANUAL GUARDIAN OVERRIDE (Emergency)
+    #     # ----------------------------------------------------
+    #     msg = QtWidgets.QMessageBox(self)
+    #     msg.setWindowTitle("Guardian NOT Recognized")
+    #     msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
+
+    #     msg.setTextFormat(Qt.TextFormat.RichText)
+
+    #     msg.setText(
+    #         f"""
+    #         <div style="text-align:center;">
+
+    #             <!-- Title -->
+    #             <p style="font-size:18px; font-weight:700; margin-bottom:2px;">
+    #                 Guardian NOT Recognized
+    #             </p>
+
+    #             <!-- Action -->
+    #             <p style="font-size:14px; margin-top:0;">
+    #                 for <b style="color:#8b2fdb;">{action}</b>
+    #             </p>
+
+    #             <!-- Big Spacer -->
+    #             <div style="margin:18px 0;"></div>
+
+    #             <!-- Contact -->
+    #             <p style="font-size:14px; margin:4px 0;">
+    #                 <b>You may add or contact guardian to verify:</b>
+    #             </p>
+
+    #             <p style="font-size:16px; font-weight:600; color:#8b2fdb; margin-top:2px;">
+    #                 {emergency_contact}
+    #             </p>
+
+    #             <!-- Big Spacer -->
+    #             <div style="margin:18px 0;"></div>
+
+    #             <!-- Student Info -->
+    #             <p style="text-align:left; margin-left:40px;">
+    #                 <b>Student:</b> {fullname}<br>
+    #                 <b>Status:</b> Attendance Recorded
+    #             </p>
+
+    #         </div>
+    #         """
+    #     )
+
+    #     # Purple button design
+    #     msg.setStyleSheet("""
+    #         QMessageBox {
+    #             background-color: #ffffff;
+    #         }
+    #         QLabel {
+    #             color: #333;
+    #             font-size: 13px;
+    #         }
+    #         QPushButton {
+    #             min-width: 130px;
+    #             padding: 7px 14px;
+    #             border-radius: 8px;
+    #             border: none;
+    #             font-weight: 600;
+    #             background-color: #8b2fdb;
+    #             color: #ffffff;
+    #         }
+    #         QPushButton:hover {
+    #             background-color: #a35cff;
+    #         }
+    #     """)
+
+    #     manual_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    #     skip_btn   = msg.addButton("Skip For Now", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+
+    #     msg.exec()
+
+    #     # Optional: use your app logo as window icon
+    #     # icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
+    #     # msg.setWindowIcon(QtGui.QIcon(icon_path))
+
+
+
+    #     if msg.clickedButton() == manual_btn:
+    #         name, ok = QInputDialog.getText(
+    #             self,
+    #             "Manual Verification",
+    #             "Enter Guardian Name:"
+    #         )
+
+    #         if ok and name.strip():
+    #             manual_name = name.strip()
+
+    #             # Only update pickup guardian
+    #             # self.guardian_controller.update_pickup_guardian(real_id, manual_name)
+    #             # self.guardian_controller.manual_pickup(real_id, manual_name)
+    #             if action == "DROP-OFF":
+    #                 # DO NOT update time again — only correct the guardian name
+    #                 self.guardian_controller.update_dropoff_guardian(real_id, manual_name)
+    #             else:
+    #                 # PICKUP truly needs a timestamp
+    #                 self.guardian_controller.manual_pickup(real_id, manual_name)
+
+
+
+    #             QtWidgets.QMessageBox.information(
+    #                 self,
+    #                 "Guardian Updated",
+    #                 f"Manual verification recorded:\nGuardian: {manual_name}"
+    #             )
+
+    # def handle_student_click(self, item: QListWidgetItem):
+    #     if item is None:
+    #         return
+
+    #     studid = item.data(Qt.ItemDataRole.UserRole)
+    #     student = next((s for s in self.all_students if s["studid"] == studid), None)
+    #     if not student:
+    #         return
+
+    #     fullname = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}".strip()
+    #     emergency_contact = student.get("studcontact") or "No emergency contact on record"
+
+    #     student_db = self.student_controller.get_student(self.username, studid)
+    #     real_id = student_db["studentid"]
+
+    #     status = self.guardian_controller.get_today_attendance(real_id)
+
+    #     # ---------------- EARLY RETURN IF BOTH LOGGED ----------------
+    #     if status and status["dropoff_time"] is not None and status["pickup_time"] is not None:
+    #         QtWidgets.QMessageBox.information(
+    #             self,
+    #             "Already Completed",
+    #             f"Student: {fullname}\nBoth DROP-OFF and PICK-UP already recorded today."
+    #         )
+    #         return
+
+    #     # ---------------- CAMERA ----------------
+    #     cam = CameraCapture()
+    #     if cam.exec() != QDialog.DialogCode.Accepted:
+    #         return
+
+    #     captured = cam.captured_encoding
+    #     frame = cam.current_frame
+    #     if captured is None:
+    #         return
+
+    #     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    #     faces = face_recognition.face_locations(rgb)
+    #     if not faces:
+    #         return
+
+    #     top, right, bottom, left = faces[0]
+    #     if (right - left) < 150 or (bottom - top) < 150:
+    #         QtWidgets.QMessageBox.warning(self, "Too Far", "Please move closer.")
+    #         return
+
+    #     # ---------------- MATCH ----------------
+    #     guardians = self.guardian_controller.get_guardians_for_student(real_id)
+    #     known_encodings, names = [], []
+
+    #     for g in guardians:
+    #         decoded = self.guardian_controller.decode_face(g["face_encoding"])
+    #         if decoded is not None:
+    #             known_encodings.append(decoded)
+    #             names.append(g["guardianname"])
+
+    #     recognized = False
+    #     guardian_name = None
+
+    #     if known_encodings:
+    #         distances = face_recognition.face_distance(known_encodings, captured)
+    #         best = np.argmin(distances)
+    #         if distances[best] <= 0.40:
+    #             recognized = True
+    #             guardian_name = names[best]
+
+
+    #     # ==================================================
+    #     # ✅ RECOGNIZED — NO CHANGES
+    #     # ==================================================
+    #     if recognized:
+    #         if status is None or status["dropoff_time"] is None:
+    #             self.guardian_controller.call_dropoff(real_id, guardian_name, True)
+    #             QtWidgets.QMessageBox.information(self, "Drop-off Recorded", guardian_name)
+    #             return
+
+    #         if status["pickup_time"] is None:
+    #             self.guardian_controller.call_pickup(real_id, guardian_name, True)
+    #             self.guardian_controller.clear_verification(real_id)
+    #             QtWidgets.QMessageBox.information(self, "Pick-up Recorded", guardian_name)
+    #             return
+
+    #         return
+
+    #     # ==================================================
+    #     # ❌ UNRECOGNIZED — DROP-OFF
+    #     # ==================================================
+    #     if status is None or status["dropoff_time"] is None:
+    #         msg = QtWidgets.QMessageBox(self)
+    #         msg.setWindowTitle("Guardian Not Recognized")
+    #         msg.setTextFormat(Qt.TextFormat.RichText)
+    #         msg.setText(f"""
+    #         <div style="text-align:center;">
+    #             <p><b>Guardian NOT Recognized</b></p>
+    #             <p>Action: DROP-OFF</p>
+    #             <hr>
+    #             <p><b>Emergency Contact</b></p>
+    #             <p style="color:#8b2fdb;">{emergency_contact}</p>
+    #             <hr>
+    #             <p>{fullname}</p>
+    #         </div>
+    #         """)
+
+    #         add_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    #         # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+    #         msg.exec()
+
+    #         if msg.clickedButton() != add_btn:
+    #             return  # ❌ cancel = NO SAVE
+
+    #         name, ok = QInputDialog.getText(self, "Add Guardian", "Guardian Name:")
+    #         if ok and name.strip():
+    #             self.guardian_controller.call_dropoff(real_id, name.strip(), True)
+    #         return
+
+    #     # ==================================================
+    #     # 🔐 PICK-UP — FIRST FAILURE
+    #     # ==================================================
+    #     if status["pickup_time"] is None and not self.guardian_controller.is_waiting_verification(real_id):
+    #         self.guardian_controller.set_waiting_verification(real_id)
+
+    #         msg = QtWidgets.QMessageBox(self)
+    #         msg.setTextFormat(Qt.TextFormat.RichText)
+    #         msg.setText(f"""
+    #         <div style="text-align:center;">
+    #             <p><b>Guardian NOT Recognized</b></p>
+    #             <p>Action: PICK-UP</p>
+    #             <hr>
+    #             <p><b>Emergency Contact</b></p>
+    #             <p style="color:#8b2fdb;">{emergency_contact}</p>
+    #             <p>Status: Waiting for parent verification</p>
+    #         </div>
+    #         """)
+
+    #         msg.addButton("Verify Parent", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    #         # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+    #         msg.exec()
+    #         return
+
+    #     # ==================================================
+    #     # 🔁 PICK-UP — AFTER VERIFY
+    #     # ==================================================
+    #     msg = QtWidgets.QMessageBox(self)
+    #     msg.setTextFormat(Qt.TextFormat.RichText)
+    #     msg.setText(f"""
+    #     <div style="text-align:center;">
+    #         <p><b>Verification Pending</b></p>
+    #         <hr>
+    #         <p><b>Emergency Contact</b></p>
+    #         <p style="color:#8b2fdb;">{emergency_contact}</p>
+    #         <p>{fullname}</p>
+    #     </div>
+    #     """)
+
+    #     scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+    #     add_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+    #     # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+    #     msg.exec()
+
+    #     if msg.clickedButton() == scan_btn:
+    #         self.handle_student_click(item)
+
+    #     if msg.clickedButton() == add_btn:
+    #         name, ok = QInputDialog.getText(self, "Manual Pick-up", "Guardian Name:")
+    #         if ok and name.strip():
+    #             self.guardian_controller.manual_pickup(real_id, name.strip())
+    #             self.guardian_controller.clear_verification(real_id)
+
+
     def handle_student_click(self, item: QListWidgetItem):
         if item is None:
             return
 
-        # ----------------------------------------------------
-        # GET STUDENT BY CODE (studid like "S001")
-        # ----------------------------------------------------
-        studid = item.data(Qt.ItemDataRole.UserRole)
-        if not studid:
-            QtWidgets.QMessageBox.warning(self, "Error", "Invalid student selected")
-            return
-
-        student = next((s for s in self.all_students if s["studid"] == studid), None)
-        if student is None:
-            QtWidgets.QMessageBox.warning(self, "Error", "Student not found")
+        student = self.get_student_from_item(item)
+        if not student:
             return
 
         fullname = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}".strip()
+        emergency_contact = student.get("studcontact") or "No emergency contact"
 
-        # ----------------------------------------------------
-        # OPEN CAMERA + CAPTURE FACE
-        # ----------------------------------------------------
-        cam = CameraCapture()
-        result = cam.exec()
-
-        if result != QtWidgets.QDialog.DialogCode.Accepted:
-            return
-
-        captured = cam.captured_encoding
-        frame = cam.current_frame
-
-        if captured is None:
-            QtWidgets.QMessageBox.warning(self, "Error", "No face captured")
-            return
-
-        # ----------------------------------------------------
-        # SECURITY CHECK: FACE SIZE MUST BE LARGE ENOUGH
-        # ----------------------------------------------------
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        faces = face_recognition.face_locations(rgb)
-
-        if not faces:
-            QtWidgets.QMessageBox.warning(self, "Error", "No face detected")
-            return
-
-        top, right, bottom, left = faces[0]
-        face_width = right - left
-        face_height = bottom - top
-
-        # Prevent scanning small printed photos or far faces
-        if face_width < 150 or face_height < 150:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Too Far",
-                "Please move closer to the camera."
-            )
-            return
-
-        # ----------------------------------------------------
-        # GET REAL studentid (INT PK)
-        # ----------------------------------------------------
-        student_db = self.student_controller.get_student(self.username, studid)
-        if not student_db:
-            QtWidgets.QMessageBox.warning(self, "Error", "Student not found in DB")
-            return
-
-        real_id = student_db["studentid"]   # <--- correct primary key
-
-        # ----------------------------------------------------
-        # LOAD GUARDIANS (STUDENT-SPECIFIC)
-        # ----------------------------------------------------
-        guardians = self.guardian_controller.get_guardians_for_student(real_id)
-
-        if not guardians:
-            QtWidgets.QMessageBox.warning(self, "No Guardians", "No guardians registered")
-            return
-
-        # Convert bytea → numpy arrays
-        known_encodings = []
-        names = []
-
-        for g in guardians:
-            enc_bytes = g.get("face_encoding")
-            if enc_bytes:
-                try:
-                    decoded = self.guardian_controller.decode_face(enc_bytes)
-                    if decoded is not None:
-                        known_encodings.append(decoded)
-                        names.append(g["guardianname"])
-                except Exception as e:
-                    print("Decode error:", e)
-
-        if not known_encodings:
-            QtWidgets.QMessageBox.warning(self, "Error", "No stored face encodings")
-            return
-
-        
-        distances = face_recognition.face_distance(known_encodings, captured)
-        best_idx = int(np.argmin(distances))
-        best_distance = float(distances[best_idx])
-
-        THRESHOLD = 0.40  # strict + makeup-friendly
-
-        if best_distance <= THRESHOLD:
-            guardian_name = names[best_idx]
-            status = self.guardian_controller.get_today_attendance(real_id)
-
-            if status is None or status["dropoff_time"] is None:
-                self.guardian_controller.call_dropoff(real_id, guardian_name, True)
-                QtWidgets.QMessageBox.information(self, "Drop-off Recorded",
-                    f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: DROP-OFF")
-                return
-
-            if status["pickup_time"] is None:
-                self.guardian_controller.call_pickup(real_id, guardian_name, True)
-                QtWidgets.QMessageBox.information(self, "Pick-up Recorded",
-                    f"Student: {fullname}\nStudent Status: Attendance Recorded\nGuardian: {guardian_name}\nAction: PICK-UP")
-                return
-
-            QtWidgets.QMessageBox.warning(self, "Already Completed",
-                f"Student: {fullname}\nBoth DROP-OFF and PICK-UP already recorded today.")
-            return
-
-
-        # ----------------------------------------------------
-        # ========== UNVERIFIED BRANCH ==========
-        # ----------------------------------------------------
-        emergency_contact = student.get("studcontact") or "No contact number stored"
+        student_db = self.student_controller.get_student(self.username, student["studid"])
+        real_id = student_db["studentid"]
 
         status = self.guardian_controller.get_today_attendance(real_id)
 
-        if status is None or status["dropoff_time"] is None:
-            # First log → DROP-OFF
-            self.guardian_controller.call_dropoff(real_id, "UNVERIFIED GUARDIAN", False)
-            action = "DROP-OFF"
-        elif status["pickup_time"] is None:
-            # Follow-up log → PICK-UP
-            self.guardian_controller.call_pickup(real_id, "UNVERIFIED GUARDIAN", False)
-            action = "PICK-UP"
-        else:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Already Completed",
-                f"Student: {fullname}\nBoth DROP-OFF and PICK-UP are already recorded today."
+        # ✅ ALREADY COMPLETED
+        if status and status["dropoff_time"] and status["pickup_time"]:
+            QtWidgets.QMessageBox.information(
+                self, "Already Completed",
+                f"{fullname}\nDrop-off and Pick-up already recorded."
             )
             return
 
+        # ==================================================
+        # 🔐 PICK-UP — WAITING VERIFICATION (NO CAMERA)
+        # ==================================================
+        if status and status["dropoff_time"] and status["pickup_time"] is None:
+            if self.guardian_controller.is_waiting_verification(real_id):
+                # Let handle_unrecognized_guardian decide what to show
+                self.handle_unrecognized_guardian(
+                    real_id, fullname, emergency_contact, status, item
+                )
+                return
 
-        # ----------------------------------------------------
-        # MANUAL GUARDIAN OVERRIDE (Emergency)
-        # ----------------------------------------------------
-        msg = QtWidgets.QMessageBox(self)
-        msg.setWindowTitle("Guardian NOT Recognized")
-        msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
 
-        msg.setTextFormat(Qt.TextFormat.RichText)
+        # ---------------- CAMERA OPENS ONLY HERE ----------------
+        captured, frame = self.capture_student_face()
+        if captured is None:
+            return
 
-        msg.setText(
-            f"""
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        faces = face_recognition.face_locations(rgb)
+        if not faces:
+            return
+
+        top, right, bottom, left = faces[0]
+        if (right - left) < 150 or (bottom - top) < 150:
+            QtWidgets.QMessageBox.warning(self, "Too Far", "Please move closer.")
+            return
+
+        recognized, guardian_name = self.match_guardian(real_id, captured)
+
+        if recognized:
+            self.handle_recognized_guardian(real_id, fullname, guardian_name, status)
+        else:
+            self.handle_unrecognized_guardian(real_id, fullname, emergency_contact, status, item)
+
+
+
+
+    # ---------------- Helper Methods ----------------
+
+    def get_student_from_item(self, item: QListWidgetItem):
+        studid = item.data(Qt.ItemDataRole.UserRole)
+        return next((s for s in self.all_students if s["studid"] == studid), None)
+
+    # def capture_student_face(self):
+    #     cam = CameraCapture()
+    #     if cam.exec() != QDialog.DialogCode.Accepted:
+    #         return None, None
+    #     return cam.captured_encoding, cam.current_frame
+
+    def capture_student_face(self):
+        cam = CameraCapture()
+        if cam.exec() != QDialog.DialogCode.Accepted:
+            return None, None
+
+        frames_to_average = 5
+        encodings_list = []
+
+        for i in range(frames_to_average):
+            rgb = cv2.cvtColor(cam.current_frame, cv2.COLOR_BGR2RGB)
+            faces = face_recognition.face_locations(rgb)
+            if faces:
+                encs = face_recognition.face_encodings(rgb, faces)
+                if encs:
+                    encodings_list.append(encs[0])
+            # wait ~100ms between frames for movement
+            QtWidgets.QApplication.processEvents()
+        
+        if not encodings_list:
+            return None, None
+        
+        # Average encoding
+        avg_encoding = np.mean(encodings_list, axis=0)
+        return avg_encoding, cam.current_frame
+
+
+
+    # def match_guardian(self, student_id, captured_encoding):
+    #     guardians = self.guardian_controller.get_guardians_for_student(student_id)
+    #     known_encodings, names = [], []
+
+    #     for g in guardians:
+    #         decoded = self.guardian_controller.decode_face(g["face_encoding"])
+    #         if decoded is not None:
+    #             known_encodings.append(decoded)
+    #             names.append(g["guardianname"])
+
+    #     if not known_encodings:
+    #         return False, None
+
+    #     distances = face_recognition.face_distance(known_encodings, captured_encoding)
+    #     best_idx = np.argmin(distances)
+    #     if distances[best_idx] <= 0.40:
+    #         return True, names[best_idx]
+    #     return False, None
+
+    def match_guardian(self, student_id, captured_encoding):
+        guardians = self.guardian_controller.get_guardians_for_student(student_id)
+        known_encodings, names = [], []
+
+        for g in guardians:
+            decoded = self.guardian_controller.decode_face(g["face_encoding"])
+            if decoded is not None:
+                known_encodings.append(decoded)
+                names.append(g["guardianname"])
+
+        if not known_encodings:
+            return False, None
+
+        distances = face_recognition.face_distance(known_encodings, captured_encoding)
+        best_idx = np.argmin(distances)
+        
+        # Increased threshold for more reliable detection
+        THRESHOLD = 0.40
+        if distances[best_idx] <= THRESHOLD:
+            return True, names[best_idx]
+        return False, None
+    
+    
+    def handle_recognized_guardian(self, student_id, fullname, guardian_name, status):
+        # DROP-OFF
+        if status is None or status["dropoff_time"] is None:
+            self.guardian_controller.call_dropoff(student_id, guardian_name, True)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Drop-off Recorded",
+                f"Drop-off by Guardian: \n{guardian_name}"
+            )
+            return
+
+        # PICK-UP
+        if status["pickup_time"] is None:
+            self.guardian_controller.call_pickup(student_id, guardian_name, True)
+            self.guardian_controller.clear_verification(student_id)
+            QtWidgets.QMessageBox.information(
+                self,
+                "Pick-up Recorded",
+                f"Pick-up by Guardian: \n{guardian_name}"
+            )
+            return
+
+    # def handle_recognized_guardian(self, student_id, fullname, guardian_name, status):
+    #     # DROP-OFF
+    #     if status is None or status["dropoff_time"] is None:
+    #         self.guardian_controller.call_dropoff(student_id, guardian_name, True)
+    #         QtWidgets.QMessageBox.information(self, "Drop-off Recorded", guardian_name)
+    #         return
+
+    #     # PICK-UP
+    #     if status["pickup_time"] is None:
+    #         self.guardian_controller.call_pickup(student_id, guardian_name, True)
+    #         self.guardian_controller.clear_verification(student_id)
+    #         QtWidgets.QMessageBox.information(self, "Pick-up Recorded", guardian_name)
+    #         return
+
+    def handle_unrecognized_guardian(self, student_id, fullname, emergency_contact, status, item):
+        """
+        Handles situations where the guardian is not recognized.
+        Properly manages DROP-OFF and PICK-UP flows, including X button handling
+        and Scan Again functionality.
+        """
+
+        # ==================================================
+        # ❌ DROP-OFF — UNRECOGNIZED
+        # ==================================================
+        if status is None or status["dropoff_time"] is None:
+            msg = QtWidgets.QMessageBox(self)
+            msg.setWindowTitle("Guardian Not Recognized")
+            msg.setTextFormat(Qt.TextFormat.RichText)
+            msg.setText(f"""
             <div style="text-align:center;">
-
-                <!-- Title -->
-                <p style="font-size:18px; font-weight:700; margin-bottom:2px;">
-                    Guardian NOT Recognized
-                </p>
-
-                <!-- Action -->
-                <p style="font-size:14px; margin-top:0;">
-                    for <b style="color:#8b2fdb;">{action}</b>
-                </p>
-
-                <!-- Big Spacer -->
-                <div style="margin:18px 0;"></div>
-
-                <!-- Contact -->
-                <p style="font-size:14px; margin:4px 0;">
-                    <b>You may add or contact guardian to verify:</b>
-                </p>
-
-                <p style="font-size:16px; font-weight:600; color:#8b2fdb; margin-top:2px;">
-                    {emergency_contact}
-                </p>
-
-                <!-- Big Spacer -->
-                <div style="margin:18px 0;"></div>
-
-                <!-- Student Info -->
-                <p style="text-align:left; margin-left:40px;">
-                    <b>Student:</b> {fullname}<br>
-                    <b>Status:</b> Attendance Recorded
-                </p>
-
+                <p><b>Guardian NOT Recognized</b></p>
+                <p>Action: DROP-OFF</p>
+                <hr>
+                <p><b>Emergency Contact</b></p>
+                <p style="color:#8b2fdb;">{emergency_contact}</p>
+                <p>{fullname}</p>
             </div>
-            """
-        )
+            """)
 
-        # Purple button design
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #ffffff;
-            }
-            QLabel {
-                color: #333;
-                font-size: 13px;
-            }
-            QPushButton {
-                min-width: 130px;
-                padding: 7px 14px;
-                border-radius: 8px;
-                border: none;
-                font-weight: 600;
-                background-color: #8b2fdb;
-                color: #ffffff;
-            }
-            QPushButton:hover {
-                background-color: #a35cff;
-            }
+            add_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+            msg.exec()
+            clicked = msg.clickedButton()
+
+            # ❌ X or cancel → do nothing
+            if clicked != add_btn:
+                return
+
+            # ✅ Add Guardian manually
+            name, ok = QInputDialog.getText(self, "Add Guardian", "Guardian Name:")
+            if ok and name.strip():
+                self.guardian_controller.call_dropoff(student_id, name.strip(), True)
+            return
+
+        # ==================================================
+        # 🔐 PICK-UP — FIRST UNRECOGNIZED (NO WAITING YET)
+        # ==================================================
+        if status["pickup_time"] is None and not self.guardian_controller.is_waiting_verification(student_id):
+            msg = QtWidgets.QMessageBox(self)
+            msg.setWindowTitle("Guardian Not Recognized")
+            msg.setTextFormat(Qt.TextFormat.RichText)
+            msg.setText(f"""
+            <div style="text-align:center;">
+                <p><b>Guardian NOT Recognized</b></p>
+                <p>Action: PICK-UP</p>
+                <hr>
+                <p><b>Emergency Contact</b></p>
+                <p style="color:#8b2fdb;">{emergency_contact}</p>
+                <p>Status: Waiting for parent verification</p>
+            </div>
+            """)
+
+            verify_btn = msg.addButton("Verify Parent", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+            msg.exec()
+            clicked = msg.clickedButton()
+
+            # ❌ X → clear waiting flag, exit
+            if clicked != verify_btn:
+                self.guardian_controller.clear_verification(student_id)
+                return
+
+            # ✅ User clicked "Verify Parent" → set waiting flag
+            self.guardian_controller.set_waiting_verification(student_id)
+            return
+
+        # ==================================================
+        # 🔁 PICK-UP — VERIFICATION PENDING
+        # ==================================================
+        while True:
+            msg = QtWidgets.QMessageBox(self)
+            msg.setWindowTitle("Verification Pending")
+            msg.setTextFormat(Qt.TextFormat.RichText)
+            msg.setText(f"""
+            <div style="text-align:center;">
+                <p><b>Verification Pending</b></p>
+                <hr>
+                <p><b>Emergency Contact</b></p>
+                <p style="color:#8b2fdb;">{emergency_contact}</p>
+                <p>{fullname}</p>
+            </div>
+            """)
+
+            # Add custom buttons
+            scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+            add_btn  = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+
+            # Add standard Cancel button (this gives the X a role)
+            msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+
+            result = msg.exec()  # returns Accepted, Rejected, etc
+
+            # Check what happened
+            clicked = msg.clickedButton()
+
+            if result == QtWidgets.QMessageBox.StandardButton.Cancel or clicked not in [scan_btn, add_btn]:
+                # User pressed X or Cancel
+                # self.guardian_controller.clear_verification(student_id)
+                return
+
+            # ---------------- Scan Again ----------------
+            clicked = msg.clickedButton()
+            if clicked == scan_btn:
+                self.guardian_controller.clear_verification(student_id)
+                captured, frame = self.capture_student_face()
+                if captured is None:
+                    break  # user canceled camera
+                recognized, guardian_name = self.match_guardian(student_id, captured)
+                if recognized:
+                    self.handle_recognized_guardian(student_id, fullname, guardian_name, status)
+                    break
+                else:
+                    # continue loop → show Verification Pending again
+                    continue
+
+            # ---------------- Add Guardian ----------------
+            if clicked == add_btn:
+                name, ok = QInputDialog.getText(self, "Manual Pick-up", "Guardian Name:")
+                if ok and name.strip():
+                    self.guardian_controller.manual_pickup(student_id, name.strip())
+                    self.guardian_controller.clear_verification(student_id)
+                break  # exit loop
+
+        # while True:  # loop until user closes or adds guardian
+        #     msg = QtWidgets.QMessageBox(self)
+        #     msg.setWindowTitle("Verification Pending")
+        #     msg.setTextFormat(Qt.TextFormat.RichText)
+        #     msg.setText(f"""
+        #     <div style="text-align:center;">
+        #         <p><b>Verification Pending</b></p>
+        #         <hr>
+        #         <p><b>Emergency Contact</b></p>
+        #         <p style="color:#8b2fdb;">{emergency_contact}</p>
+        #         <p>{fullname}</p>
+        #     </div>
+        #     """)
+
+        #     # Add custom buttons
+        #     scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        #     add_btn  = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+
+        #     msg.exec()
+        #     clicked = msg.clickedButton()
+
+
+        #     # ❌ X → user closed popup
+        #     if clicked is None:
+        #         # User closed with X
+        #         self.guardian_controller.clear_verification(student_id)
+        #         break
+            
+
+
+        #     # ---------------- Scan Again ----------------
+        #     if clicked == scan_btn:
+        #         self.guardian_controller.clear_verification(student_id)
+        #         captured, frame = self.capture_student_face()
+        #         if captured is None:
+        #             break  # user canceled camera
+
+        #         recognized, guardian_name = self.match_guardian(student_id, captured)
+        #         if recognized:
+        #             self.handle_recognized_guardian(student_id, fullname, guardian_name, status)
+        #             break
+        #         else:
+        #             # continue loop → show Verification Pending again
+        #             continue
+
+        #     # ---------------- Add Guardian ----------------
+        #     if clicked == add_btn:
+        #         name, ok = QInputDialog.getText(self, "Manual Pick-up", "Guardian Name:")
+        #         if ok and name.strip():
+        #             self.guardian_controller.manual_pickup(student_id, name.strip())
+        #             self.guardian_controller.clear_verification(student_id)
+        #         break  # exit loop
+            
+            
+
+
+
+
+
+
+    # ---------------- Pop-up Helpers ----------------
+
+    def show_unrecognized_popup(self, title, action, fullname, emergency_contact,
+                            add_guardian_callback, show_scan_again=False, item=None):
+
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle(title)
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(f"""
+        <div style="text-align:center;">
+            <p><b>{title}</b></p>
+            <p>Action: {action}</p>
+            <hr>
+            <p><b>Emergency Contact</b></p>
+            <p style="color:#8b2fdb;">{emergency_contact}</p>
+            <hr>
+            <p>{fullname}</p>
+        </div>
         """)
 
-        manual_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
-        skip_btn   = msg.addButton("Skip For Now", QtWidgets.QMessageBox.ButtonRole.RejectRole)
+        add_btn = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        if show_scan_again:
+            scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.ActionRole)
 
+        # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
         msg.exec()
 
-        # Optional: use your app logo as window icon
-        # icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
-        # msg.setWindowIcon(QtGui.QIcon(icon_path))
+        clicked = msg.clickedButton()
 
+        # ✅ X or Cancel
+        if clicked is None or clicked == msg.button(QtWidgets.QMessageBox.StandardButton.Cancel):
+            return
 
-
-        if msg.clickedButton() == manual_btn:
-            name, ok = QInputDialog.getText(
-                self,
-                "Manual Verification",
-                "Enter Guardian Name:"
-            )
-
+        if clicked == add_btn:
+            name, ok = QInputDialog.getText(self, "Add Guardian", "Guardian Name:")
             if ok and name.strip():
-                manual_name = name.strip()
+                add_guardian_callback(name.strip())
 
-                # Only update pickup guardian
-                # self.guardian_controller.update_pickup_guardian(real_id, manual_name)
-                # self.guardian_controller.manual_pickup(real_id, manual_name)
-                if action == "DROP-OFF":
-                    # DO NOT update time again — only correct the guardian name
-                    self.guardian_controller.update_dropoff_guardian(real_id, manual_name)
-                else:
-                    # PICKUP truly needs a timestamp
-                    self.guardian_controller.manual_pickup(real_id, manual_name)
+        elif show_scan_again and clicked == scan_btn:
+            self.handle_student_click(item)
+
+    def show_verification_pending_popup(self, fullname, emergency_contact, student_id, item):
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle("Verification Pending")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(f"""
+        <div style="text-align:center;">
+            <p><b>Verification Pending</b></p>
+            <hr>
+            <p><b>Emergency Contact</b></p>
+            <p style="color:#8b2fdb;">{emergency_contact}</p>
+            <p>{fullname}</p>
+        </div>
+        """)
+
+        scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        add_btn  = msg.addButton("Add Guardian Name", QtWidgets.QMessageBox.ButtonRole.ActionRole)
+        # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+
+        msg.exec()
+        clicked = msg.clickedButton()
+
+        # ✅ X OR CANCEL → DO NOTHING
+        if clicked is None or clicked == msg.button(QtWidgets.QMessageBox.StandardButton.Cancel):
+            return
+
+        if clicked == scan_btn:
+            self.handle_student_click(item)
+
+        elif clicked == add_btn:
+            name, ok = QInputDialog.getText(self, "Manual Pick-up", "Guardian Name:")
+            if ok and name.strip():
+                self.guardian_controller.manual_pickup(student_id, name.strip())
+                self.guardian_controller.clear_verification(student_id)
+
+    def show_verify_parent_popup(self, fullname, emergency_contact):
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle("Guardian Not Recognized")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(f"""
+        <div style="text-align:center;">
+            <p><b>Guardian NOT Recognized</b></p>
+            <p>Action: PICK-UP</p>
+            <hr>
+            <p><b>Emergency Contact</b></p>
+            <p style="color:#8b2fdb;">{emergency_contact}</p>
+            <p>Status: Waiting for parent verification</p>
+        </div>
+        """)
+
+        msg.addButton("Verify Parent", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        msg.exec()
 
 
+    
+    def show_scan_again_popup(self, fullname, emergency_contact, student_id, item):
+        msg = QtWidgets.QMessageBox(self)
+        msg.setWindowTitle("Verification Pending")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(f"""
+        <div style="text-align:center;">
+            <p><b>Verification Pending</b></p>
+            <hr>
+            <p><b>Emergency Contact</b></p>
+            <p style="color:#8b2fdb;">{emergency_contact}</p>
+            <p>{fullname}</p>
+        </div>
+        """)
 
-                QtWidgets.QMessageBox.information(
-                    self,
-                    "Guardian Updated",
-                    f"Manual verification recorded:\nGuardian: {manual_name}"
-                )
+        scan_btn = msg.addButton("Scan Again", QtWidgets.QMessageBox.ButtonRole.AcceptRole)
+        # msg.setStandardButtons(QtWidgets.QMessageBox.StandardButton.Cancel)
+        msg.exec()
 
+        if msg.clickedButton() == scan_btn:
+            self.capture_and_retry_pickup(student_id, item)
+
+
+    def capture_and_retry_pickup(self, student_id, item):
+        captured, frame = self.capture_student_face()
+        if captured is None:
+            return
+
+        recognized, guardian_name = self.match_guardian(student_id, captured)
+
+        student = self.get_student_from_item(item)
+        fullname = f"{student['studlname']}, {student['studfname']} {student['studmname'] or ''}".strip()
+        emergency_contact = student.get("studcontact") or "No emergency contact"
+
+        if recognized:
+            self.guardian_controller.call_pickup(student_id, guardian_name, True)
+            self.guardian_controller.clear_verification(student_id)
+            QtWidgets.QMessageBox.information(self, "Pick-up Recorded", guardian_name)
+        else:
+            self.show_verify_parent_popup(fullname, emergency_contact)
 
     # ----------------------------------------------------
     # BACK TO CHOOSE MODE

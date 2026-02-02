@@ -13,6 +13,10 @@ class GuardianController:
         self.conn = self.db.connect()
         self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
 
+        
+        self.verification_status = {}
+        
+        
         if not os.path.exists(UPLOAD_DIR):
             os.makedirs(UPLOAD_DIR)
 
@@ -157,3 +161,17 @@ class GuardianController:
         """, (guardian_name, studentid))
 
         self.conn.commit()
+        
+        
+        
+    # mark waiting
+    def set_waiting_verification(self, studentid):
+        self.verification_status[studentid] = "WAITING"
+
+    # check waiting
+    def is_waiting_verification(self, studentid):
+        return self.verification_status.get(studentid) == "WAITING"
+
+    # clear temporary verification
+    def clear_verification(self, studentid):
+        self.verification_status.pop(studentid, None)
