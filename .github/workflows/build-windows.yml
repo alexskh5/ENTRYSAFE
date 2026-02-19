@@ -46,8 +46,14 @@ jobs:
             --add-data "config.json;." `
             main.py
 
-      - name: Upload Artifact
+      - name: Create release bundle zip
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist/EntrySafe/EntrySafe.exe")) { throw "EntrySafe.exe not found in dist/EntrySafe" }
+          Compress-Archive -Path "dist/EntrySafe/*" -DestinationPath "EntrySafe-Bundle.zip"
+
+      - name: Upload Bundle
         uses: actions/upload-artifact@v4
         with:
           name: EntrySafe-Windows-Build
-          path: dist/EntrySafe
+          path: EntrySafe-Bundle.zip
