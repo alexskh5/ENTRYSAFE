@@ -27,18 +27,20 @@ jobs:
           pip install psycopg2-binary
 
       - name: Build EXE with PyInstaller
+        shell: pwsh
         run: |
-          pyinstaller --noconsole --onedir --name EntrySafe ^
-          --paths . ^
-          --hidden-import views ^
-          --hidden-import utils ^
-          --collect-submodules views ^
-          --collect-submodules utils ^
-          --add-data "assets;assets" ^
-          --add-data "ui;ui" ^
-          --add-data "uploads;uploads" ^
-          --add-data "config.json;." ^
-          main.py
+          pyinstaller --noconsole --onedir --name EntrySafe `
+            --paths . `
+            --hidden-import views `
+            --hidden-import utils `
+            --collect-submodules views `
+            --collect-submodules utils `
+            --add-data "assets;assets" `
+            --add-data "ui;ui" `
+            --add-data "uploads;uploads" `
+            --add-data "config.json;." `
+            main.py
+
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
