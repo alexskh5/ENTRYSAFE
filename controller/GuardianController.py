@@ -3,8 +3,9 @@ import numpy as np
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from database.connection import Database
+from utils.paths import app_dir
 
-UPLOAD_DIR = "uploads/guardians"
+UPLOAD_DIR = os.path.join(app_dir(), "uploads", "guardians")
 
 
 class GuardianController:
@@ -13,12 +14,23 @@ class GuardianController:
         self.conn = self.db.connect()
         self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
 
+        self.verification_status = {}
+
         
         self.verification_status = {}
         
         
-        if not os.path.exists(UPLOAD_DIR):
-            os.makedirs(UPLOAD_DIR)
+        # if not os.path.exists(UPLOAD_DIR):
+        #     os.makedirs(UPLOAD_DIR)
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        
+    def to_db_path(self, abs_path):
+        base = app_dir()
+        rel = os.path.relpath(abs_path, base)
+        return rel.replace("\\", "/")
+
+    def to_abs_path(self, db_path):
+        return os.path.join(app_dir(), db_path)
 
     # ===============================================
     # Encode / Decode face embedding

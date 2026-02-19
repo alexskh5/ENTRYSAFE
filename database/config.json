@@ -1,7 +1,0 @@
-{
-    "dbname": "DB_ENTRYSAFE",
-    "user": "postgres",
-    "password": "entrysafe2025",
-    "host": "localhost",
-    "port": 5432
-}

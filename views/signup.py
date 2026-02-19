@@ -1,20 +1,26 @@
 import sys
 import re
-from os import path
+import os
+# from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 
 from controller.SignUpController import SignupController
 from utils.password_validator import validate_password
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "signup.ui")
-LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "signup.ui")
+# LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+BASE = app_dir()
+UI_FILE   = os.path.join(BASE, "ui", "signup.ui")
+LOGO_FILE = os.path.join(BASE, "assets", "images", "appLogo.png")
+BG_FILE   = os.path.join(BASE, "assets", "images", "bg1.png")
 
 class SignupWindow(QtWidgets.QMainWindow):
     def __init__(self):

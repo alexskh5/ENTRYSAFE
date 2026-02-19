@@ -6,13 +6,19 @@ from PyQt6 import QtWidgets, uic, QtGui, QtCore
 
 from controller.HomePassController import HomePassController
 from controller.ForgotPasswordController import ForgotPasswordController
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))         # .../entrysafe/views
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  # .../entrysafe
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "choose_mode.ui")
+GATE_ICON = os.path.join(BASE, "assets", "images", "gate.png")
+HOME_ICON = os.path.join(BASE, "assets", "images", "home.png")
+# BASE_DIR = path.dirname(path.abspath(__file__))         # .../entrysafe/views
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))  # .../entrysafe
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "choose_mode.ui")
-GATE_ICON = path.join(PROJECT_ROOT, "assets", "images", "gate.png")
-HOME_ICON = path.join(PROJECT_ROOT, "assets", "images", "home.png")
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "choose_mode.ui")
+# GATE_ICON = path.join(PROJECT_ROOT, "assets", "images", "gate.png")
+# HOME_ICON = path.join(PROJECT_ROOT, "assets", "images", "home.png")
 
 
 class ChooseModeWindow(QtWidgets.QWidget):

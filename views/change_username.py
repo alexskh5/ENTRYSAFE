@@ -2,10 +2,14 @@
 from PyQt6 import QtWidgets, uic, QtGui
 from os import path
 from database.connection import Database  
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-UI_CHANGE_USERNAME = path.join(PROJECT_ROOT, "ui", "change_username.ui")
+BASE = app_dir()
+UI_CHANGE_USERNAME = os.path.join(BASE, "ui", "change_username.ui")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# UI_CHANGE_USERNAME = path.join(PROJECT_ROOT, "ui", "change_username.ui")
 
 class ChangeUsernameDialog(QtWidgets.QDialog):
     def __init__(self, current_username):
@@ -17,7 +21,7 @@ class ChangeUsernameDialog(QtWidgets.QDialog):
         
         self.setWindowTitle("Username - EntrySafe")
 
-        icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")  
+        icon_path = path.join(BASE, "assets", "images", "appLogo.png")
         self.setWindowIcon(QtGui.QIcon(icon_path))
 
         self.currentUsernameLineEdit.setText(self.current_username)

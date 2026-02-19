@@ -2,6 +2,7 @@ import psycopg2
 import json
 import os
 import traceback
+from utils.paths import app_dir
 
 class Database:
     def __init__(self):
@@ -9,7 +10,8 @@ class Database:
 
     def connect(self):
         try:
-            base_path = os.path.dirname(__file__)
+            # base_path = os.path.dirname(__file__)
+            base_path = app_dir()
             config_path = os.path.join(base_path, "config.json")
 
             if not os.path.exists(config_path):

@@ -1,5 +1,6 @@
 import sys
-from os import path
+# from os import path
+import os
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve
@@ -8,13 +9,17 @@ from views.change_password import ChangePasswordDialog
 from views.change_homepass import ChangeHomepassDialog
 from views.about import AboutDialog
 from views.ask_help import AskHelpDialog
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "dashboard.ui")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "dashboard.ui")
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "dashboard.ui")
+BG_FILE = os.path.join(BASE, "assets", "images", "bg1.png")
 
 
 class AdminWindow(QtWidgets.QMainWindow):

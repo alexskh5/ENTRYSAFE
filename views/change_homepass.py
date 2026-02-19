@@ -2,10 +2,14 @@
 from PyQt6 import QtWidgets, uic, QtGui
 from os import path
 from database.connection import Database
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-UI_CHANGE_HOMEPASS = path.join(PROJECT_ROOT, "ui", "change_homepass.ui")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# UI_CHANGE_HOMEPASS = path.join(PROJECT_ROOT, "ui", "change_homepass.ui")
+BASE = app_dir()
+UI_CHANGE_HOMEPASS = os.path.join(BASE, "ui", "change_homepass.ui")
 
 
 class ChangeHomepassDialog(QtWidgets.QDialog):
@@ -18,7 +22,7 @@ class ChangeHomepassDialog(QtWidgets.QDialog):
         
         self.setWindowTitle("Home Password - EntrySafe")
 
-        icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")  
+        icon_path = os.path.join(BASE, "assets", "images", "appLogo.png")  
         self.setWindowIcon(QtGui.QIcon(icon_path))
 
         self.changeBtn.clicked.connect(self.change_homepass)

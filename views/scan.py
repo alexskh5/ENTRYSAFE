@@ -9,16 +9,18 @@ from PyQt6.QtWidgets import QDialog, QLabel, QHBoxLayout, QVBoxLayout, QListWidg
 
 from controller.StudentController import StudentController
 from controller.GuardianController import GuardianController
-from os import path
-
+# from os import path
+import os
+from utils.paths import app_dir
 
 # -----------------------------------------
 # PATHS
 # -----------------------------------------
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-UI_FILE = path.join(PROJECT_ROOT, "ui", "scan.ui")
-
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "scan.ui")
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "scan.ui")
 
 class CameraCapture(QDialog):
     def __init__(self):

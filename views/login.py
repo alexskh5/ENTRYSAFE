@@ -1,20 +1,33 @@
 import sys
-from os import path
+# from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt
 from controller.LoginController import LoginController
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "login.ui")
-LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+
+BASE = app_dir()
+
+UI_FILE   = os.path.join(BASE, "ui", "login.ui")
+LOGO_FILE = os.path.join(BASE, "assets", "images", "appLogo.png")
+BG_FILE   = os.path.join(BASE, "assets", "images", "bg1.png")
 
 # eye icons
-EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
-EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
+EYE_ON  = os.path.join(BASE, "assets", "icons", "eye.svg")
+EYE_OFF = os.path.join(BASE, "assets", "icons", "eye-off.svg")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "login.ui")
+# LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+
+# # eye icons
+# EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
+# EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
 
 class LoginWindow(QtWidgets.QMainWindow):
     def __init__(self):

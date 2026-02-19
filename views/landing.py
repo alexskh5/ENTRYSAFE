@@ -1,20 +1,34 @@
 # entrysafe/views/landing.py
-import sys, os
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
 
-import sys
-from os import path
+import os
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt, QTimer
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-UI_FILE = path.join(PROJECT_ROOT, "ui", "landing.ui")
+from utils.paths import app_dir
 
-LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")    # replace if different
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "landing bg.png")  # your provided bg
+BASE = app_dir()
+
+UI_FILE   = os.path.join(BASE, "ui", "landing.ui")
+LOGO_FILE = os.path.join(BASE, "assets", "images", "appLogo.png")
+BG_FILE   = os.path.join(BASE, "assets", "images", "landing bg.png")  # keep exact filename
+
+# import sys, os
+# PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# if PROJECT_ROOT not in sys.path:
+#     sys.path.insert(0, PROJECT_ROOT)
+
+# import sys
+# from os import path
+# from PyQt6 import QtWidgets, uic
+# from PyQt6.QtGui import QPixmap
+# from PyQt6.QtCore import Qt, QTimer
+
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "landing.ui")
+
+# LOGO_FILE = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")    # replace if different
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "landing bg.png")  # your provided bg
 
 class LandingWindow(QtWidgets.QMainWindow):
     """

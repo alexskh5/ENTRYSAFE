@@ -7,14 +7,20 @@ import os
 from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableWidgetItem
+from utils.paths import app_dir
+
 
 from controller.StudentController import StudentController
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "student.ui")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "student.ui")
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "student.ui")
+BG_FILE = os.path.join(BASE, "assets", "images", "bg1.png")
+GUARDIAN_DIR_ABS = os.path.join(app_dir(), "uploads", "guardians")
 
 
 class StudentWindow(QtWidgets.QMainWindow):
@@ -385,9 +391,17 @@ class StudentWindow(QtWidgets.QMainWindow):
         guardians = gc.get_guardians_for_student(real_id)
 
         for g in guardians:
-            path = g["face_image_path"]
-            if path and os.path.exists(path):
-                os.remove(path)
+            # path = g["face_image_path"]
+            # if path and os.path.exists(path):
+            #     os.remove(path)
+            # from controller.GuardianController import GuardianController
+            # gc = GuardianController()
+
+            db_path = g["face_image_path"]
+            abs_path = gc.to_abs_path(db_path) if db_path else None
+
+            if abs_path and os.path.exists(abs_path):
+                os.remove(abs_path)
 
         self.controller.delete_student(self.username, student_code)
 
@@ -642,44 +656,88 @@ class StudentWindow(QtWidgets.QMainWindow):
         cam = CameraCapture()
         if cam.exec() == QtWidgets.QDialog.DialogCode.Accepted:
 
-            folder = "uploads/guardians"
-            os.makedirs(folder, exist_ok=True)
+            from controller.GuardianController import GuardianController
+            gc = GuardianController()
+            # folder = "uploads/guardians"
+            
+            os.makedirs(GUARDIAN_DIR_ABS, exist_ok=True)
 
             safe_name = self.newGuardianName.text().strip().replace(" ", "_").lower()
             unique = str(QDate.currentDate().toJulianDay()) + "_" + str(os.getpid())
             filename = f"{self.current_student_for_guardian}_{safe_name}_{unique}.jpg"
-            filepath = os.path.join(folder, filename)
+            # filepath = os.path.join(folder, filename)
 
-            cv2.imwrite(filepath, cam.captured_image)
-            self.current_guardian_image_path = filepath
+            # 1) ABS path for saving
+            abs_path = os.path.join(GUARDIAN_DIR_ABS, filename)
+
+            cv2.imwrite(abs_path, cam.captured_image)
+            
+            
+            # 2) REL path for DB storing
+            db_path = gc.to_db_path(abs_path)
+
+            self.current_guardian_image_path = db_path
             self.current_guardian_encoding = cam.captured_encoding
 
-            pixmap = QPixmap(filepath)
+            # 3) Display needs ABS path
+            pixmap = QPixmap(abs_path)
             self.imgPlaceholder.setPixmap(
                 pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio)
             )
+
+            # cv2.imwrite(filepath, cam.captured_image)
+            # self.current_guardian_image_path = filepath
+            # self.current_guardian_encoding = cam.captured_encoding
+
+            # pixmap = QPixmap(filepath)
+            # self.imgPlaceholder.setPixmap(
+            #     pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio)
+            # )
 
             QtWidgets.QMessageBox.information(self, "Success", "Face scanned successfully!")
 
     def retake_guardian_face(self):
         self.current_guardian_encoding = None
 
-        if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
-            os.remove(self.current_guardian_image_path)
+        # if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
+        #     os.remove(self.current_guardian_image_path)
 
+        from controller.GuardianController import GuardianController
+        gc = GuardianController()
+
+        abs_path = gc.to_abs_path(self.current_guardian_image_path)
+
+        if self.current_guardian_image_path and os.path.exists(abs_path):
+            os.remove(abs_path)
+        
         self.current_guardian_image_path = None
         self.imgPlaceholder.clear()
 
         self.scan_guardian_face()
 
+    # def delete_scanned_face(self):
+    #     self.current_guardian_encoding = None
+
+    #     if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
+    #         os.remove(self.current_guardian_image_path)
+
+    #     self.current_guardian_image_path = None
+    #     self.imgPlaceholder.clear()
+    
     def delete_scanned_face(self):
         self.current_guardian_encoding = None
 
-        if self.current_guardian_image_path and os.path.exists(self.current_guardian_image_path):
-            os.remove(self.current_guardian_image_path)
+        if self.current_guardian_image_path:
+            from controller.GuardianController import GuardianController
+            gc = GuardianController()
+            abs_path = gc.to_abs_path(self.current_guardian_image_path)
+
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
 
         self.current_guardian_image_path = None
         self.imgPlaceholder.clear()
+
 
     def edit_guardian(self, guardian_id):
         from controller.GuardianController import GuardianController
@@ -707,16 +765,15 @@ class StudentWindow(QtWidgets.QMainWindow):
             dob_widget.setDate(dob_widget.minimumDate())
 
         img_lbl = page.findChild(QtWidgets.QLabel, "imgPlaceholderEdit")
-        image_path = guardian["face_image_path"]
+        db_path = guardian["face_image_path"]
+        abs_path = gc.to_abs_path(db_path) if db_path else None
 
         self.current_guardian_encoding = guardian["face_encoding"]
-        self.current_guardian_image_path = image_path
+        self.current_guardian_image_path = db_path
 
-        if image_path and os.path.exists(image_path):
-            pixmap = QPixmap(image_path)
-            img_lbl.setPixmap(
-                pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio)
-            )
+        if abs_path and os.path.exists(abs_path):
+            pixmap = QPixmap(abs_path)
+            img_lbl.setPixmap(pixmap.scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
         else:
             img_lbl.clear()
 
@@ -755,11 +812,17 @@ class StudentWindow(QtWidgets.QMainWindow):
 
         new_image_path = self.current_guardian_image_path
         old_record = gc.get_guardian_by_id(guardian_id)
-        old_path = old_record["face_image_path"]
+        # old_path = old_record["face_image_path"]
 
-        if old_path and new_image_path and old_path != new_image_path:
-            if os.path.exists(old_path):
-                os.remove(old_path)
+        # if old_path and new_image_path and old_path != new_image_path:
+        #     if os.path.exists(old_path):
+        #         os.remove(old_path)
+        old_db_path = old_record["face_image_path"]
+
+        if old_db_path and new_image_path and old_db_path != new_image_path:
+            old_abs = gc.to_abs_path(old_db_path)
+            if os.path.exists(old_abs):
+                os.remove(old_abs)
 
         gc.update_guardian(
             guardianid=guardian_id,
@@ -799,11 +862,20 @@ class StudentWindow(QtWidgets.QMainWindow):
             dob_lbl.setText("No date available")
 
         img_lbl = page.findChild(QtWidgets.QLabel, "imgPlaceholderDisplay")
-        image_path = guardian["face_image_path"]
-        self.current_guardian_image_path = image_path
+        # image_path = guardian["face_image_path"]
+        # self.current_guardian_image_path = image_path
 
-        if image_path and os.path.exists(image_path):
-            pixmap = QPixmap(image_path)
+        from controller.GuardianController import GuardianController
+        gc = GuardianController()
+        
+        db_path = guardian["face_image_path"]
+        self.current_guardian_image_path = db_path
+        abs_path = gc.to_abs_path(db_path) if db_path else None
+
+        
+        
+        if abs_path and os.path.exists(abs_path):
+            pixmap = QPixmap(abs_path)
             img_lbl.setPixmap(
                 pixmap.scaled(220, 220, Qt.AspectRatioMode.KeepAspectRatio)
             )
@@ -825,15 +897,20 @@ class StudentWindow(QtWidgets.QMainWindow):
         if confirm != QtWidgets.QMessageBox.StandardButton.Yes:
             return
 
+        # if hasattr(self, "current_guardian_image_path") and \
+        #     self.current_guardian_image_path and \
+        #     os.path.exists(self.current_guardian_image_path):
+
+        #     os.remove(self.current_guardian_image_path)
         from controller.GuardianController import GuardianController
         gc = GuardianController()
+
         gc.delete_guardian(guardian_id)
-
-        if hasattr(self, "current_guardian_image_path") and \
-            self.current_guardian_image_path and \
-            os.path.exists(self.current_guardian_image_path):
-
-            os.remove(self.current_guardian_image_path)
+        
+        if self.current_guardian_image_path:
+            abs_path = gc.to_abs_path(self.current_guardian_image_path)
+            if os.path.exists(abs_path):
+                os.remove(abs_path)
 
         QtWidgets.QMessageBox.information(self, "Deleted", "Guardian deleted successfully.")
 

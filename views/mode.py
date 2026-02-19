@@ -1,18 +1,27 @@
 import sys
-from os import path
+# from os import path
 from PyQt6 import QtWidgets, uic, QtGui, QtCore
 
 from controller.HomePassController import HomePassController
 from controller.ForgotPasswordController import ForgotPasswordController
 
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-UI_FILE = path.join(PROJECT_ROOT, "ui", "mode.ui")
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "mode.ui")
 
 # eye icons
-EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
-EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
+EYE_ON = os.path.join(BASE, "assets", "icons", "eye.svg")
+EYE_OFF = os.path.join(BASE, "assets", "icons", "eye-off.svg")
+
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "mode.ui")
+
+# # eye icons
+# EYE_ON = path.join(PROJECT_ROOT, "assets", "icons", "eye.svg")
+# EYE_OFF = path.join(PROJECT_ROOT, "assets", "icons", "eye-off.svg")
 
 class ChooseModeWindow(QtWidgets.QMainWindow):
     def __init__(self, username):

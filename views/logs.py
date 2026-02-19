@@ -1,15 +1,22 @@
 import sys
-from os import path
+# from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableWidgetItem
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
 
-UI_FILE = path.join(PROJECT_ROOT, "ui", "logs.ui")
-BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
+import os
+from utils.paths import app_dir
+
+BASE = app_dir()
+UI_FILE = os.path.join(BASE, "ui", "logs.ui")
+BG_FILE = os.path.join(BASE, "assets", "images", "bg1.png")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+
+# UI_FILE = path.join(PROJECT_ROOT, "ui", "logs.ui")
+# BG_FILE = path.join(PROJECT_ROOT, "assets", "images", "bg1.png")
 
 
 from controller.LogsController import LogsController

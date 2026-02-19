@@ -2,10 +2,14 @@
 from PyQt6 import QtWidgets, uic, QtGui
 from os import path
 import webbrowser
+import os
+from utils.paths import app_dir
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
-UI_ASK_HELP = path.join(PROJECT_ROOT, "ui", "ask_help.ui")
+# BASE_DIR = path.dirname(path.abspath(__file__))
+# PROJECT_ROOT = path.abspath(path.join(BASE_DIR, ".."))
+# UI_ASK_HELP = path.join(PROJECT_ROOT, "ui", "ask_help.ui")
+BASE = app_dir()
+UI_ASK_HELP = os.path.join(BASE, "ui", "ask_help.ui")
 
 
 class AskHelpDialog(QtWidgets.QDialog):
@@ -15,7 +19,7 @@ class AskHelpDialog(QtWidgets.QDialog):
         
         self.setWindowTitle("Ask Help - EntrySafe")
 
-        icon_path = path.join(PROJECT_ROOT, "assets", "images", "appLogo.png")  
+        icon_path = os.path.join(BASE, "assets", "images", "appLogo.png")  
         self.setWindowIcon(QtGui.QIcon(icon_path))
 
         # self.fbButton.clicked.connect(lambda: self.open_url("https://www.facebook.com/mckhenzyy"))
