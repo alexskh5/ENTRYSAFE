@@ -3,24 +3,24 @@ import sys
 
 def app_dir():
     """
-    Returns the root folder of the app.
+    Returns the folder where resources (ui/assets/config) are expected.
     Works for:
     - python main.py
-    - PyInstaller onedir exe
+    - PyInstaller --onedir
+    - when launched via shortcut / different working directory
     """
-
-    # If running as EXE (PyInstaller)
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        # PyInstaller EXE: resources are beside the exe
+        base = os.path.dirname(sys.executable)
+    else:
+        # Dev: project root (ENTRYSAFE/)
+        base = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    # Normal python run
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    # Fallback: if ui folder isn't found (because of nesting),
+    # try one level deeper (common when zipped/extracted)
+    if not os.path.exists(os.path.join(base, "ui")):
+        alt = os.path.join(base, "EntrySafe")
+        if os.path.exists(os.path.join(alt, "ui")):
+            base = alt
 
-
-def resource_path(*paths):
-    """
-    Helper to safely get files like:
-    ui files, assets, icons, uploads, etc.
-    """
-
-    return os.path.join(app_dir(), *paths)
+    return base
