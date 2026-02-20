@@ -35,6 +35,8 @@ jobs:
       - name: Build macOS App (PyInstaller)
         run: |
           pyinstaller --windowed --onedir --name EntrySafe \
+            --icon assets/icons/appLogo.icns \
+            --osx-bundle-identifier com.entrysafe.app \
             --paths . \
             --hidden-import views \
             --hidden-import utils \
@@ -48,10 +50,17 @@ jobs:
             --add-data "config.json:." \
             main.py
 
-      - name: Create release bundle zip
+      - name: Verify build output
         run: |
-          test -d "dist/EntrySafe" || (echo "dist/EntrySafe missing" && exit 1)
-          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe" "EntrySafe-macOS-Intel.zip"
+          echo "---- dist/EntrySafe contents ----"
+          ls -la dist/EntrySafe || true
+          echo "---- checking .app ----"
+          test -d "dist/EntrySafe/EntrySafe.app" || (echo "EntrySafe.app missing" && exit 1)
+
+      # ✅ This prevents users from clicking the Unix executable by mistake.
+      - name: Create release bundle zip (APP ONLY)
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe/EntrySafe.app" "EntrySafe-macOS-Intel.zip"
 
       - name: Upload Bundle
         uses: actions/upload-artifact@v4
