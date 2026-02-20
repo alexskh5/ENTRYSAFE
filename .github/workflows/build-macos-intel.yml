@@ -28,17 +28,15 @@ jobs:
           pip install PyQt6
           pip install psycopg2-binary
 
-      - name: Prepare config.json
+      - name: Prepare config.json for build
         run: |
           cp config.example.json config.json
 
-      - name: Build macOS App Bundle (.app)
+      - name: Build macOS App (PyInstaller)
         run: |
-          pyinstaller --windowed \
-            --name "EntrySafe.app" \
+          pyinstaller --windowed --onedir --name EntrySafe \
             --icon assets/icons/appLogo.icns \
             --osx-bundle-identifier com.entrysafe.app \
-            --target-architecture x86_64 \
             --paths . \
             --hidden-import views \
             --hidden-import utils \
@@ -52,15 +50,10 @@ jobs:
             --add-data "config.json:." \
             main.py
 
-      - name: Show dist contents
+      - name: Create release bundle zip
         run: |
-          echo "---- dist contents ----"
-          ls -la dist
-
-      - name: Zip ONLY EntrySafe.app
-        run: |
-          test -d "dist/EntrySafe.app" || (echo "EntrySafe.app missing" && exit 1)
-          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe.app" "EntrySafe-macOS-Intel.zip"
+          test -d "dist/EntrySafe" || (echo "dist/EntrySafe missing" && exit 1)
+          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe" "EntrySafe-macOS-Intel.zip"
 
       - name: Upload Bundle
         uses: actions/upload-artifact@v4
