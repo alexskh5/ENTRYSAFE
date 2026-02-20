@@ -28,15 +28,17 @@ jobs:
           pip install PyQt6
           pip install psycopg2-binary
 
-      - name: Prepare config.json for build
+      - name: Prepare config.json
         run: |
           cp config.example.json config.json
 
-      - name: Build macOS App (PyInstaller)
+      - name: Build macOS App Bundle (.app)
         run: |
-          pyinstaller --windowed --onedir --name EntrySafe \
+          pyinstaller --windowed \
+            --name "EntrySafe.app" \
             --icon assets/icons/appLogo.icns \
             --osx-bundle-identifier com.entrysafe.app \
+            --target-architecture x86_64 \
             --paths . \
             --hidden-import views \
             --hidden-import utils \
@@ -50,17 +52,15 @@ jobs:
             --add-data "config.json:." \
             main.py
 
-      - name: Verify build output
+      - name: Show dist contents
         run: |
-          echo "---- dist/EntrySafe contents ----"
-          ls -la dist/EntrySafe || true
-          echo "---- checking .app ----"
-          test -d "dist/EntrySafe/EntrySafe.app" || (echo "EntrySafe.app missing" && exit 1)
+          echo "---- dist contents ----"
+          ls -la dist
 
-      # ✅ This prevents users from clicking the Unix executable by mistake.
-      - name: Create release bundle zip (APP ONLY)
+      - name: Zip ONLY EntrySafe.app
         run: |
-          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe/EntrySafe.app" "EntrySafe-macOS-Intel.zip"
+          test -d "dist/EntrySafe.app" || (echo "EntrySafe.app missing" && exit 1)
+          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe.app" "EntrySafe-macOS-Intel.zip"
 
       - name: Upload Bundle
         uses: actions/upload-artifact@v4
