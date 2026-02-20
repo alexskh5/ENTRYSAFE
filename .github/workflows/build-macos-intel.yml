@@ -32,9 +32,14 @@ jobs:
         run: |
           cp config.example.json config.json
 
+      - name: Check icon file exists
+        run: |
+          ls -la assets/icons
+          test -f "assets/icons/appLogo.icns" || (echo "appLogo.icns missing" && exit 1)
+
       - name: Build macOS App (PyInstaller)
         run: |
-          pyinstaller --windowed --onedir --name EntrySafe \
+          pyinstaller --windowed --onedir --name "EntrySafe.app" \
             --icon assets/icons/appLogo.icns \
             --osx-bundle-identifier com.entrysafe.app \
             --paths . \
@@ -50,10 +55,17 @@ jobs:
             --add-data "config.json:." \
             main.py
 
+      - name: Verify .app exists
+        run: |
+          echo "---- dist contents ----"
+          ls -la dist
+          echo "---- find .app ----"
+          find dist -maxdepth 3 -name "*.app" -print
+          test -d "dist/EntrySafe.app" || (echo "EntrySafe.app missing" && exit 1)
+
       - name: Create release bundle zip
         run: |
-          test -d "dist/EntrySafe" || (echo "dist/EntrySafe missing" && exit 1)
-          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe" "EntrySafe-macOS-Intel.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe.app" "EntrySafe-macOS-Intel.zip"
 
       - name: Upload Bundle
         uses: actions/upload-artifact@v4
