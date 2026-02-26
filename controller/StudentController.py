@@ -141,9 +141,15 @@ class StudentController:
     # -------------------------------------------------
     # Delete student (per user)
     # -------------------------------------------------
-    def delete_student(self, username, studID):
+    # def delete_student(self, username, studID):
+    #     self.cursor.execute("""
+    #         CALL delete_student(%s, %s);
+    #     """, (username, studID))
+    #     self.conn.commit()
+    #     return True
+    def delete_student(self, username, studID, reason=None):
         self.cursor.execute("""
-            CALL delete_student(%s, %s);
-        """, (username, studID))
+            CALL public.delete_student(%s::varchar, %s::varchar, %s::text);
+        """, (username, studID, reason))
         self.conn.commit()
         return True

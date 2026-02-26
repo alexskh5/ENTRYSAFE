@@ -36,7 +36,7 @@
    </property>
    <property name="font">
     <font>
-     <pointsize>11</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="styleSheet">
@@ -95,14 +95,14 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>12</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="text">
     <string>Current Password:</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
    </property>
   </widget>
   <widget class="QLabel" name="label_4">
@@ -116,14 +116,14 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>12</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="text">
     <string>New Password:</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+    <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
    </property>
   </widget>
   <widget class="QLineEdit" name="newHomepassLineEdit">
@@ -137,11 +137,11 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>11</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="echoMode">
-    <enum>QLineEdit::Password</enum>
+    <enum>QLineEdit::EchoMode::Password</enum>
    </property>
   </widget>
   <widget class="QPushButton" name="cancelBtn">
@@ -155,7 +155,7 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>11</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="styleSheet">
@@ -183,8 +183,7 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>11</pointsize>
-     <weight>75</weight>
+     <pointsize>15</pointsize>
      <bold>true</bold>
     </font>
    </property>
@@ -192,7 +191,7 @@ color: white;</string>
     <string>Enter a new home password below.</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignCenter</set>
+    <set>Qt::AlignmentFlag::AlignCenter</set>
    </property>
   </widget>
   <widget class="QLabel" name="label_3">
@@ -206,8 +205,7 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>10</pointsize>
-     <weight>50</weight>
+     <pointsize>15</pointsize>
      <bold>false</bold>
     </font>
    </property>
@@ -215,7 +213,7 @@ color: white;</string>
     <string>Your password must be secure and easy for you to remember.</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignCenter</set>
+    <set>Qt::AlignmentFlag::AlignCenter</set>
    </property>
   </widget>
   <widget class="QLineEdit" name="currentHomepassLineEdit">
@@ -229,11 +227,11 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>11</pointsize>
+     <pointsize>16</pointsize>
     </font>
    </property>
    <property name="echoMode">
-    <enum>QLineEdit::Password</enum>
+    <enum>QLineEdit::EchoMode::Password</enum>
    </property>
   </widget>
   <widget class="QPushButton" name="showPasswordBtn">
@@ -247,7 +245,7 @@ color: white;</string>
    </property>
    <property name="font">
     <font>
-     <pointsize>10</pointsize>
+     <pointsize>15</pointsize>
     </font>
    </property>
    <property name="styleSheet">

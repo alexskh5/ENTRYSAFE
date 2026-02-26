@@ -116,7 +116,7 @@ color: white;</string>
            <widget class="QLabel" name="adminLabel">
             <property name="font">
              <font>
-              <pointsize>20</pointsize>
+              <pointsize>30</pointsize>
              </font>
             </property>
             <property name="text">
@@ -169,7 +169,7 @@ background-color: transparent;</string>
            <widget class="QPushButton" name="userBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="styleSheet">
@@ -197,7 +197,7 @@ QPushButton:hover {
            <widget class="QPushButton" name="passBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="toolTip">
@@ -228,7 +228,7 @@ QPushButton:hover {
            <widget class="QPushButton" name="homePassBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="toolTip">
@@ -259,7 +259,7 @@ QPushButton:hover {
            <widget class="QPushButton" name="aboutBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="toolTip">
@@ -290,7 +290,7 @@ QPushButton:hover {
            <widget class="QPushButton" name="askBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="styleSheet">
@@ -363,7 +363,7 @@ background-color: transparent;</string>
            <widget class="QPushButton" name="logOutBtn">
             <property name="font">
              <font>
-              <pointsize>15</pointsize>
+              <pointsize>20</pointsize>
              </font>
             </property>
             <property name="toolTip">
@@ -518,7 +518,7 @@ QPushButton:hover {
               <widget class="QLabel" name="welcomeLabel">
                <property name="font">
                 <font>
-                 <pointsize>20</pointsize>
+                 <pointsize>30</pointsize>
                 </font>
                </property>
                <property name="text">
@@ -666,6 +666,18 @@ border: 2px solid grey;
              </property>
              <item>
               <widget class="QPushButton" name="StudentBtn">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>16777215</width>
+                 <height>200</height>
+                </size>
+               </property>
                <property name="font">
                 <font>
                  <pointsize>20</pointsize>
@@ -723,6 +735,18 @@ border: 2px solid grey;
              </property>
              <item>
               <widget class="QPushButton" name="attendanceBtn">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>16777215</width>
+                 <height>200</height>
+                </size>
+               </property>
                <property name="font">
                 <font>
                  <pointsize>20</pointsize>
@@ -780,6 +804,18 @@ border: 2px solid grey;
              </property>
              <item>
               <widget class="QPushButton" name="guardianBtn">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>50</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>16777215</width>
+                 <height>200</height>
+                </size>
+               </property>
                <property name="font">
                 <font>
                  <pointsize>20</pointsize>

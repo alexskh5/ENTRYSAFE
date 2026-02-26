@@ -6,6 +6,7 @@ from PyQt6 import QtWidgets, uic
 from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import QDialog, QLabel, QHBoxLayout, QVBoxLayout, QListWidgetItem, QInputDialog
+from PyQt6.QtWidgets import QPushButton, QMessageBox
 
 from controller.StudentController import StudentController
 from controller.GuardianController import GuardianController
@@ -22,24 +23,322 @@ from utils.paths import app_dir
 BASE = app_dir()
 UI_FILE = os.path.join(BASE, "ui", "scan.ui")
 
+# class CameraCapture(QDialog):
+#     def __init__(self):
+#         super().__init__()
+#         self.setWindowTitle("Scanning...")
+#         self.resize(600, 500)
+        
+#         self.stable_frames = 0
+#         self.auto_captured = False
+
+#         self.video_label = QLabel()
+#         self.video_label.setFixedSize(560, 420)
+
+#         layout = QVBoxLayout()
+#         layout.addWidget(self.video_label)
+#         self.setLayout(layout)
+
+        
+#         # Initialize camera
+#         try:
+#             self.cap = self.initialize_camera()
+#         except RuntimeError as e:
+#             QtWidgets.QMessageBox.critical(self, "Camera Error", str(e))
+#             self.reject()
+#             return
+
+        
+#         # self.cap = self.initialize_camera()
+#         self.current_frame = None
+#         self.last_face_location = None
+#         self.motion_detected = False
+#         self.captured_encoding = None
+#         # self.auto_captured = False
+
+#         # UI camera feed refresh
+#         self.render_timer = QTimer()
+#         self.render_timer.timeout.connect(self.update_frame_fast)
+#         self.render_timer.start(30)
+
+#         # Motion + face detection loop
+#         self.detect_timer = QTimer()
+#         # self.detect_timer.timeout.connect(self.detect_face_and_capture)
+#         self.detect_timer.timeout.connect(self.detect_and_validate_face)
+#         self.detect_timer.start(500)
+        
+#         # =========================
+#         # TIMEOUT FOR SCAN ERROR
+#         # =========================
+#         self.timeout_timer = QTimer()
+#         self.timeout_timer.setSingleShot(True)
+#         self.timeout_timer.timeout.connect(self.face_timeout_error)
+#         self.timeout_timer.start(10000)  # 10 seconds to detect a face
+
+#     def face_timeout_error(self):
+#         if not self.auto_captured:
+#             QtWidgets.QMessageBox.warning(
+#                 self,
+#                 "Scan Timeout",
+#                 "Unable to detect a face. Please ensure your face is visible and try again."
+#             )
+#             self.cleanup_camera()
+#             self.reject()
+
+#     def initialize_camera(self):
+#         import platform
+#         system = platform.system()
+
+#         for i in [0, 1, 2, 3]:
+#             if system == "Windows":
+#                 cap = cv2.VideoCapture(i, cv2.CAP_DSHOW)
+#             elif system == "Darwin":
+#                 cap = cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION)
+#             else:
+#                 cap = cv2.VideoCapture(i)
+
+#             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+#             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+#             if cap.isOpened():
+#                 ret, frame = cap.read()
+#                 if ret:
+#                     return cap
+#             cap.release()
+
+#         raise RuntimeError("No working camera found")
+
+#     def update_frame_fast(self):
+#         ret, frame = self.cap.read()
+#         if not ret:
+#             return
+        
+#         frame = cv2.flip(frame, 1)
+#         self.current_frame = frame
+
+#         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#         h, w, ch = rgb.shape
+#         qimg = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
+#         self.video_label.setPixmap(QPixmap.fromImage(qimg))
+        
+    
+#     # -------------------------------------
+#     # SECURITY HELPERS
+#     # -------------------------------------
+#     def face_centered(self, face, frame_width):
+#         top, right, bottom, left = face
+#         face_center = (left + right) // 2
+#         return abs(face_center - frame_width // 2) < 70
+
+#     def forehead_visible(self, face):
+#         top, right, bottom, left = face
+#         return (bottom - top) > 180
+
+#     def eyes_clear(self, frame, face):
+#         top, right, bottom, left = face
+#         face_img = frame[top:bottom, left:right]
+#         gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+#         edges = cv2.Canny(gray, 60, 120)
+#         edge_ratio = np.sum(edges > 0) / edges.size
+#         return edge_ratio < 0.13
+    
+    
+
+#     # def detect_face_and_capture(self):
+#     #     if self.auto_captured or self.current_frame is None:
+#     #         return
+
+#     #     small = cv2.resize(self.current_frame, (0,0), fx=0.5, fy=0.5)
+#     #     rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+
+#     #     faces = face_recognition.face_locations(rgb_small, model="cnn")
+#     #     if not faces:
+#     #         return
+
+#     #     top, right, bottom, left = faces[0]
+#     #     top *= 2; right *= 2; bottom *= 2; left *= 2
+
+#     #     if self.last_face_location:
+#     #         old_top, old_right, old_bottom, old_left = self.last_face_location
+#     #         movement = abs(top - old_top) + abs(left - old_left)
+#     #         if movement > 25:
+#     #             self.motion_detected = True
+
+#     #     self.last_face_location = (top, right, bottom, left)
+        
+#     #     # Proceed automatically when face moves
+#     #     if self.motion_detected:
+#     #         self.auto_captured = True
+#     #         self.capture_frame()
+    
+#     # -------------------------------------
+#     # DETECT + VALIDATE
+#     # -------------------------------------
+#     def detect_and_validate_face(self):
+#         if self.auto_captured or self.current_frame is None:
+#             return
+
+#         # Resize to 1/4 for faster processing
+#         small = cv2.resize(self.current_frame, (0, 0), fx=0.25, fy=0.25)
+#         rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
+
+#         # Detect faces
+#         faces = face_recognition.face_locations(rgb_small, model="hog")
+#         if not faces:
+#             self.stable_frames = 0
+#             return
+
+#         # Scale coordinates back to original frame
+#         top, right, bottom, left = faces[0]
+#         top *= 4
+#         right *= 4
+#         bottom *= 4
+#         left *= 4
+#         face = (top, right, bottom, left)
+
+#         h, w, _ = self.current_frame.shape
+
+#         # Check if face is centered (optional: widen threshold if needed)
+#         if not self.face_centered(face, w):
+#             self.stable_frames = 0
+#             return
+
+#         # Optional: skip forehead/eyes checks for now to ensure detection works
+#         # if not self.forehead_visible(face):
+#         #     self.stable_frames = 0
+#         #     return
+
+#         # if not self.eyes_clear(self.current_frame, face):
+#         #     self.stable_frames = 0
+#         #     return
+
+#         # Check if face is stable (relax movement threshold to 15 pixels)
+#         if self.last_face_location:
+#             ot, or_, ob, ol = self.last_face_location
+#             movement = abs(top - ot) + abs(left - ol)
+#             if movement < 15:  # relaxed from 5 → more tolerant
+#                 self.stable_frames += 1
+#             else:
+#                 self.stable_frames = 0
+
+#         self.last_face_location = face
+
+#         # If face stable for 3 consecutive frames → capture
+#         if self.stable_frames >= 3:
+#             self.capture_frame()
+
+#     def capture_frame(self):
+#         # rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
+#         # faces = face_recognition.face_locations(rgb, model="cnn")
+
+#         # if not faces:
+#         #     QtWidgets.QMessageBox.warning(self, "Error", "Face lost, try again.")
+#         #     self.auto_captured = False
+#         #     return
+
+#         # self.captured_encoding = face_recognition.face_encodings(
+#         #     rgb, faces, model="large"
+#         # )[0]
+
+#         # self.cleanup_camera()
+#         # self.accept()
+#         rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
+#         faces = face_recognition.face_locations(rgb, model="hog")
+
+#         if not faces:
+#             return
+
+#         encodings = face_recognition.face_encodings(rgb, faces, model="large")
+#         if not encodings:
+#             return
+
+#         self.captured_encoding = np.mean(encodings, axis=0)
+#         self.auto_captured = True
+
+#         # Stop timeout timer — face was captured
+#         self.timeout_timer.stop()
+
+#         self.cleanup_camera()
+#         self.accept()
+
+#     # def cleanup_camera(self):
+#     #     if hasattr(self, "render_timer"):
+#     #         self.render_timer.stop()
+#     #     if hasattr(self, "detect_timer"):
+#     #         self.detect_timer.stop()
+#     #     if self.cap:
+#     #         self.cap.release()
+    
+#     def cleanup_camera(self):
+#         self.render_timer.stop()
+#         self.detect_timer.stop()
+#         self.cap.release()
+
+#     def closeEvent(self, event):
+#         self.cleanup_camera()
+#         event.accept()
+
+import cv2
+import face_recognition
+import numpy as np
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtWidgets import QDialog, QLabel, QVBoxLayout, QPushButton
+
+
 class CameraCapture(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Scanning...")
-        self.resize(600, 500)
-        
-        self.stable_frames = 0
-        self.auto_captured = False
+        self.setWindowTitle("Scan Guardian Face")
+        self.resize(600, 560)
 
         self.video_label = QLabel()
         self.video_label.setFixedSize(560, 420)
+        self.video_label.setStyleSheet("background:#111;border-radius:12px;")
+
+        # Live status text
+        self.status_label = QLabel("🟡 Initializing camera...")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setStyleSheet("""
+            QLabel {
+                padding: 10px;
+                border-radius: 10px;
+                background: #f4f4f6;
+                color: #333;
+                font-weight: 600;
+            }
+        """)
+
+        # Capture button
+        self.capture_btn = QPushButton("Capture")
+        self.capture_btn.setFixedHeight(42)
+        self.capture_btn.setEnabled(False)
+        self.capture_btn.clicked.connect(self.capture_frame)
+        self.capture_btn.setStyleSheet("""
+            QPushButton {
+                border: none;
+                border-radius: 10px;
+                font-weight: 700;
+                background: #8b2fdb;
+                color: white;
+            }
+            QPushButton:disabled {
+                background: #cfc4dd;
+                color: #ffffff;
+            }
+            QPushButton:hover:!disabled {
+                background: #a35cff;
+            }
+        """)
 
         layout = QVBoxLayout()
         layout.addWidget(self.video_label)
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.capture_btn)
         self.setLayout(layout)
 
-        
-        # Initialize camera
+        # Camera init
         try:
             self.cap = self.initialize_camera()
         except RuntimeError as e:
@@ -47,43 +346,31 @@ class CameraCapture(QDialog):
             self.reject()
             return
 
-        
-        # self.cap = self.initialize_camera()
         self.current_frame = None
-        self.last_face_location = None
-        self.motion_detected = False
         self.captured_encoding = None
-        # self.auto_captured = False
 
-        # UI camera feed refresh
+        # validation state
+        self.last_validation = {
+            "ok": False,
+            "msg": "🟡 Looking for face...",
+            "face_box": None
+        }
+
+        # Smooth preview
         self.render_timer = QTimer()
         self.render_timer.timeout.connect(self.update_frame_fast)
         self.render_timer.start(30)
 
-        # Motion + face detection loop
-        self.detect_timer = QTimer()
-        # self.detect_timer.timeout.connect(self.detect_face_and_capture)
-        self.detect_timer.timeout.connect(self.detect_and_validate_face)
-        self.detect_timer.start(500)
-        
-        # =========================
-        # TIMEOUT FOR SCAN ERROR
-        # =========================
-        self.timeout_timer = QTimer()
-        self.timeout_timer.setSingleShot(True)
-        self.timeout_timer.timeout.connect(self.face_timeout_error)
-        self.timeout_timer.start(10000)  # 10 seconds to detect a face
+        # Lightweight validation (5x/sec)
+        self.validate_timer = QTimer()
+        self.validate_timer.timeout.connect(self.validate_frame)
+        self.validate_timer.start(200)
 
-    def face_timeout_error(self):
-        if not self.auto_captured:
-            QtWidgets.QMessageBox.warning(
-                self,
-                "Scan Timeout",
-                "Unable to detect a face. Please ensure your face is visible and try again."
-            )
-            self.cleanup_camera()
-            self.reject()
+        self.status_label.setText("🟡 Looking for face...")
 
+    # -----------------------------
+    # CAMERA SETUP
+    # -----------------------------
     def initialize_camera(self):
         import platform
         system = platform.system()
@@ -98,6 +385,7 @@ class CameraCapture(QDialog):
 
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             if cap.isOpened():
                 ret, frame = cap.read()
@@ -107,11 +395,19 @@ class CameraCapture(QDialog):
 
         raise RuntimeError("No working camera found")
 
+    # -----------------------------
+    # PREVIEW
+    # -----------------------------
     def update_frame_fast(self):
-        ret, frame = self.cap.read()
+        if not self.cap:
+            return
+
+        # reduce "laggy" feel
+        self.cap.grab()
+        ret, frame = self.cap.retrieve()
         if not ret:
             return
-        
+
         frame = cv2.flip(frame, 1)
         self.current_frame = frame
 
@@ -119,164 +415,128 @@ class CameraCapture(QDialog):
         h, w, ch = rgb.shape
         qimg = QImage(rgb.data, w, h, ch * w, QImage.Format.Format_RGB888)
         self.video_label.setPixmap(QPixmap.fromImage(qimg))
-        
-    
-    # -------------------------------------
-    # SECURITY HELPERS
-    # -------------------------------------
-    def face_centered(self, face, frame_width):
-        top, right, bottom, left = face
-        face_center = (left + right) // 2
-        return abs(face_center - frame_width // 2) < 70
 
-    def forehead_visible(self, face):
-        top, right, bottom, left = face
-        return (bottom - top) > 180
-
-    def eyes_clear(self, frame, face):
-        top, right, bottom, left = face
-        face_img = frame[top:bottom, left:right]
-        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 60, 120)
-        edge_ratio = np.sum(edges > 0) / edges.size
-        return edge_ratio < 0.13
-    
-    
-
-    # def detect_face_and_capture(self):
-    #     if self.auto_captured or self.current_frame is None:
-    #         return
-
-    #     small = cv2.resize(self.current_frame, (0,0), fx=0.5, fy=0.5)
-    #     rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
-
-    #     faces = face_recognition.face_locations(rgb_small, model="cnn")
-    #     if not faces:
-    #         return
-
-    #     top, right, bottom, left = faces[0]
-    #     top *= 2; right *= 2; bottom *= 2; left *= 2
-
-    #     if self.last_face_location:
-    #         old_top, old_right, old_bottom, old_left = self.last_face_location
-    #         movement = abs(top - old_top) + abs(left - old_left)
-    #         if movement > 25:
-    #             self.motion_detected = True
-
-    #     self.last_face_location = (top, right, bottom, left)
-        
-    #     # Proceed automatically when face moves
-    #     if self.motion_detected:
-    #         self.auto_captured = True
-    #         self.capture_frame()
-    
-    # -------------------------------------
-    # DETECT + VALIDATE
-    # -------------------------------------
-    def detect_and_validate_face(self):
-        if self.auto_captured or self.current_frame is None:
+    # -----------------------------
+    # VALIDATION (FAST CHECKS)
+    # -----------------------------
+    def validate_frame(self):
+        if self.current_frame is None:
             return
 
-        # Resize to 1/4 for faster processing
-        small = cv2.resize(self.current_frame, (0, 0), fx=0.25, fy=0.25)
+        frame = self.current_frame
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        brightness = float(gray.mean())
+
+        # downscale for faster detection
+        small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         rgb_small = cv2.cvtColor(small, cv2.COLOR_BGR2RGB)
 
-        # Detect faces
-        faces = face_recognition.face_locations(rgb_small, model="hog")
-        if not faces:
-            self.stable_frames = 0
+        faces_small = face_recognition.face_locations(rgb_small, model="hog")
+
+        # No face
+        if len(faces_small) == 0:
+            self.set_status(False, "🟡 No face detected. Please look at the camera.", None)
             return
 
-        # Scale coordinates back to original frame
-        top, right, bottom, left = faces[0]
-        top *= 4
-        right *= 4
-        bottom *= 4
-        left *= 4
-        face = (top, right, bottom, left)
-
-        h, w, _ = self.current_frame.shape
-
-        # Check if face is centered (optional: widen threshold if needed)
-        if not self.face_centered(face, w):
-            self.stable_frames = 0
+        # Multiple faces
+        if len(faces_small) > 1:
+            self.set_status(False, "🔴 Multiple faces detected. Only ONE person please.", None)
             return
 
-        # Optional: skip forehead/eyes checks for now to ensure detection works
-        # if not self.forehead_visible(face):
-        #     self.stable_frames = 0
-        #     return
+        # Scale back coordinates
+        top, right, bottom, left = faces_small[0]
+        top *= 2; right *= 2; bottom *= 2; left *= 2
 
-        # if not self.eyes_clear(self.current_frame, face):
-        #     self.stable_frames = 0
-        #     return
+        face_w = right - left
+        face_h = bottom - top
 
-        # Check if face is stable (relax movement threshold to 15 pixels)
-        if self.last_face_location:
-            ot, or_, ob, ol = self.last_face_location
-            movement = abs(top - ot) + abs(left - ol)
-            if movement < 15:  # relaxed from 5 → more tolerant
-                self.stable_frames += 1
-            else:
-                self.stable_frames = 0
+        # Too far
+        if face_w < 150 or face_h < 150:
+            self.set_status(False, "🔴 Face too far. Please move closer.", (top, right, bottom, left))
+            return
 
-        self.last_face_location = face
+        # Not centered
+        h, w = gray.shape
+        face_center_x = (left + right) // 2
+        if abs(face_center_x - w // 2) > 90:
+            self.set_status(False, "🔴 Please center your face.", (top, right, bottom, left))
+            return
 
-        # If face stable for 3 consecutive frames → capture
-        if self.stable_frames >= 3:
-            self.capture_frame()
+        # Too dark
+        if brightness < 60:
+            self.set_status(False, "🔴 Too dark. Move to a brighter area.", (top, right, bottom, left))
+            return
 
+        # Blurry (Laplacian variance)
+        face_img = gray[max(0, top):min(h, bottom), max(0, left):min(w, right)]
+        if face_img.size == 0:
+            self.set_status(False, "🔴 Adjust your position and try again.", (top, right, bottom, left))
+            return
+
+        blur_score = float(cv2.Laplacian(face_img, cv2.CV_64F).var())
+        if blur_score < 40:
+            self.set_status(False, "🔴 Face not clear. Stay still for a second.", (top, right, bottom, left))
+            return
+
+        # ✅ Ready
+        self.set_status(True, "🟢 Face detected. Ready to capture.", (top, right, bottom, left))
+
+    def set_status(self, ok: bool, msg: str, face_box):
+        # avoid updating UI too often if same message
+        if self.last_validation["ok"] == ok and self.last_validation["msg"] == msg:
+            return
+
+        self.last_validation = {"ok": ok, "msg": msg, "face_box": face_box}
+        self.status_label.setText(msg)
+        self.capture_btn.setEnabled(ok)
+
+    # -----------------------------
+    # CAPTURE (ONE ENCODE)
+    # -----------------------------
     def capture_frame(self):
-        # rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
-        # faces = face_recognition.face_locations(rgb, model="cnn")
-
-        # if not faces:
-        #     QtWidgets.QMessageBox.warning(self, "Error", "Face lost, try again.")
-        #     self.auto_captured = False
-        #     return
-
-        # self.captured_encoding = face_recognition.face_encodings(
-        #     rgb, faces, model="large"
-        # )[0]
-
-        # self.cleanup_camera()
-        # self.accept()
-        rgb = cv2.cvtColor(self.current_frame, cv2.COLOR_BGR2RGB)
-        faces = face_recognition.face_locations(rgb, model="hog")
-
-        if not faces:
+        if not self.last_validation["ok"] or self.current_frame is None:
             return
 
-        encodings = face_recognition.face_encodings(rgb, faces, model="large")
-        if not encodings:
+        self.capture_btn.setEnabled(False)
+        self.capture_btn.setText("Processing...")
+
+        frame = self.current_frame
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        face_box = self.last_validation["face_box"]
+        if not face_box:
+            # safety fallback
+            self.capture_btn.setText("Capture")
             return
 
-        self.captured_encoding = np.mean(encodings, axis=0)
-        self.auto_captured = True
+        # Fast encode for scanning (use "small")
+        enc = face_recognition.face_encodings(rgb, [face_box], model="small")
+        if not enc:
+            self.status_label.setText("🔴 Could not process face. Try again.")
+            self.capture_btn.setEnabled(False)
+            self.capture_btn.setText("Capture")
+            return
 
-        # Stop timeout timer — face was captured
-        self.timeout_timer.stop()
+        self.captured_encoding = enc[0]
 
         self.cleanup_camera()
         self.accept()
 
-    # def cleanup_camera(self):
-    #     if hasattr(self, "render_timer"):
-    #         self.render_timer.stop()
-    #     if hasattr(self, "detect_timer"):
-    #         self.detect_timer.stop()
-    #     if self.cap:
-    #         self.cap.release()
-    
+    # -----------------------------
+    # CLEANUP
+    # -----------------------------
     def cleanup_camera(self):
-        self.render_timer.stop()
-        self.detect_timer.stop()
-        self.cap.release()
+        if hasattr(self, "render_timer"):
+            self.render_timer.stop()
+        if hasattr(self, "validate_timer"):
+            self.validate_timer.stop()
+        if hasattr(self, "cap") and self.cap:
+            self.cap.release()
+            self.cap = None
 
     def closeEvent(self, event):
         self.cleanup_camera()
         event.accept()
-
 
 
 # --------------------------------------------------------
@@ -293,7 +553,7 @@ class ScanWindow(QtWidgets.QMainWindow):
         # Load UI
         uic.loadUi(UI_FILE, self)
         
-        
+        self.guardian_cache = {} 
         
         self.resize(1400, 800)
 
@@ -877,32 +1137,36 @@ class ScanWindow(QtWidgets.QMainWindow):
     #         return None, None
     #     return cam.captured_encoding, cam.current_frame
 
+    # def capture_student_face(self):
+    #     cam = CameraCapture()
+    #     if cam.exec() != QDialog.DialogCode.Accepted:
+    #         return None, None
+
+    #     frames_to_average = 5
+    #     encodings_list = []
+
+    #     for i in range(frames_to_average):
+    #         rgb = cv2.cvtColor(cam.current_frame, cv2.COLOR_BGR2RGB)
+    #         faces = face_recognition.face_locations(rgb)
+    #         if faces:
+    #             encs = face_recognition.face_encodings(rgb, faces)
+    #             if encs:
+    #                 encodings_list.append(encs[0])
+    #         # wait ~100ms between frames for movement
+    #         QtWidgets.QApplication.processEvents()
+        
+    #     if not encodings_list:
+    #         return None, None
+        
+    #     # Average encoding
+    #     avg_encoding = np.mean(encodings_list, axis=0)
+    #     return avg_encoding, cam.current_frame
+
     def capture_student_face(self):
         cam = CameraCapture()
         if cam.exec() != QDialog.DialogCode.Accepted:
             return None, None
-
-        frames_to_average = 5
-        encodings_list = []
-
-        for i in range(frames_to_average):
-            rgb = cv2.cvtColor(cam.current_frame, cv2.COLOR_BGR2RGB)
-            faces = face_recognition.face_locations(rgb)
-            if faces:
-                encs = face_recognition.face_encodings(rgb, faces)
-                if encs:
-                    encodings_list.append(encs[0])
-            # wait ~100ms between frames for movement
-            QtWidgets.QApplication.processEvents()
-        
-        if not encodings_list:
-            return None, None
-        
-        # Average encoding
-        avg_encoding = np.mean(encodings_list, axis=0)
-        return avg_encoding, cam.current_frame
-
-
+        return cam.captured_encoding, cam.current_frame
 
     # def match_guardian(self, student_id, captured_encoding):
     #     guardians = self.guardian_controller.get_guardians_for_student(student_id)
@@ -923,28 +1187,57 @@ class ScanWindow(QtWidgets.QMainWindow):
     #         return True, names[best_idx]
     #     return False, None
 
-    def match_guardian(self, student_id, captured_encoding):
+    # def match_guardian(self, student_id, captured_encoding):
+    #     guardians = self.guardian_controller.get_guardians_for_student(student_id)
+    #     known_encodings, names = [], []
+
+    #     for g in guardians:
+    #         decoded = self.guardian_controller.decode_face(g["face_encoding"])
+    #         if decoded is not None:
+    #             known_encodings.append(decoded)
+    #             names.append(g["guardianname"])
+
+    #     if not known_encodings:
+    #         return False, None
+
+    #     distances = face_recognition.face_distance(known_encodings, captured_encoding)
+    #     best_idx = np.argmin(distances)
+        
+    #     # Increased threshold for more reliable detection
+    #     THRESHOLD = 0.40
+    #     if distances[best_idx] <= THRESHOLD:
+    #         return True, names[best_idx]
+    #     return False, None
+    def get_guardian_templates(self, student_id):
+        if student_id in self.guardian_cache:
+            return self.guardian_cache[student_id]
+
         guardians = self.guardian_controller.get_guardians_for_student(student_id)
         known_encodings, names = [], []
 
         for g in guardians:
-            decoded = self.guardian_controller.decode_face(g["face_encoding"])
+            decoded = self.guardian_controller.decode_face(g.get("face_encoding"))
             if decoded is not None:
                 known_encodings.append(decoded)
                 names.append(g["guardianname"])
+
+        self.guardian_cache[student_id] = (known_encodings, names)
+        return known_encodings, names
+
+
+    def match_guardian(self, student_id, captured_encoding):
+        known_encodings, names = self.get_guardian_templates(student_id)
 
         if not known_encodings:
             return False, None
 
         distances = face_recognition.face_distance(known_encodings, captured_encoding)
-        best_idx = np.argmin(distances)
-        
-        # Increased threshold for more reliable detection
+        best_idx = int(np.argmin(distances))
+        best_distance = float(distances[best_idx])
+
         THRESHOLD = 0.40
-        if distances[best_idx] <= THRESHOLD:
-            return True, names[best_idx]
-        return False, None
-    
+        return (best_distance <= THRESHOLD), (names[best_idx] if best_distance <= THRESHOLD else None)
+
     
     def handle_recognized_guardian(self, student_id, fullname, guardian_name, status):
         # DROP-OFF

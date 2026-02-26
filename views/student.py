@@ -200,7 +200,7 @@ class StudentWindow(QtWidgets.QMainWindow):
         table.verticalHeader().setVisible(False)
 
         font = table.font()
-        font.setPointSize(15)
+        font.setPointSize(18)
         table.setFont(font)
 
         last_col = table.columnCount() - 1
@@ -251,7 +251,7 @@ class StudentWindow(QtWidgets.QMainWindow):
                     border: none;
                     background: transparent;
                     color: #333;
-                    font-size: 15px;
+                    font-size: 20px;
                 }
                 QPushButton:hover { color: #8b2fdb; }
             """)
@@ -403,7 +403,8 @@ class StudentWindow(QtWidgets.QMainWindow):
             if abs_path and os.path.exists(abs_path):
                 os.remove(abs_path)
 
-        self.controller.delete_student(self.username, student_code)
+        # self.controller.delete_student(self.username, student_code)
+        self.controller.delete_student(self.username, student_code, "Deleted from UI")
 
         QtWidgets.QMessageBox.information(self, "Deleted", "Student & guardians deleted.")
         self.load_students()
@@ -547,7 +548,7 @@ class StudentWindow(QtWidgets.QMainWindow):
             view_btn = QPushButton("View")
             view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             view_btn.setStyleSheet("""
-                QPushButton { border: none; background: transparent; color: #333; font-size: 15px;}
+                QPushButton { border: none; background: transparent; color: #333; font-size: 20px;}
                 QPushButton:hover { color: #8b2fdb; }
             """)
             view_btn.clicked.connect(

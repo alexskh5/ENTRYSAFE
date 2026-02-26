@@ -21,7 +21,7 @@ class ChangeUsernameDialog(QtWidgets.QDialog):
         
         self.setWindowTitle("Username - EntrySafe")
 
-        icon_path = path.join(BASE, "assets", "images", "appLogo.png")
+        icon_path = os.path.join(BASE, "assets", "images", "appLogo.png")
         self.setWindowIcon(QtGui.QIcon(icon_path))
 
         self.currentUsernameLineEdit.setText(self.current_username)

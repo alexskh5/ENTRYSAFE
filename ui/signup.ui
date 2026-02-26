@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1362</width>
+    <width>1387</width>
     <height>866</height>
    </rect>
   </property>
@@ -140,7 +140,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>25</pointsize>
+                     <pointsize>30</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -161,7 +161,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>18</pointsize>
+                     <pointsize>20</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -247,7 +247,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>13</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -297,7 +297,7 @@ border-radius: 20;</string>
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>13</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -347,7 +347,7 @@ border-radius: 20;</string>
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>13</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -422,7 +422,7 @@ border-radius: 20;</string>
                   <widget class="QPushButton" name="nextBtn">
                    <property name="font">
                     <font>
-                     <pointsize>15</pointsize>
+                     <pointsize>20</pointsize>
                      <italic>false</italic>
                     </font>
                    </property>
@@ -451,7 +451,7 @@ max-height: 1px;</string>
                   <widget class="QPushButton" name="backToLoginBtn">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>18</pointsize>
                      <italic>true</italic>
                     </font>
                    </property>
@@ -518,13 +518,13 @@ border-radius: 50;
              </property>
              <layout class="QVBoxLayout" name="verticalLayout_7">
               <property name="spacing">
-               <number>15</number>
+               <number>0</number>
               </property>
               <property name="leftMargin">
                <number>50</number>
               </property>
               <property name="topMargin">
-               <number>30</number>
+               <number>20</number>
               </property>
               <property name="rightMargin">
                <number>50</number>
@@ -542,7 +542,7 @@ border-radius: 50;
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_8">
                  <property name="spacing">
-                  <number>20</number>
+                  <number>15</number>
                  </property>
                  <property name="leftMargin">
                   <number>0</number>
@@ -566,7 +566,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>20</pointsize>
+                     <pointsize>25</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -587,7 +587,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>12</pointsize>
                      <italic>true</italic>
                     </font>
                    </property>
@@ -615,7 +615,7 @@ border-radius: 50;
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_9">
                  <property name="spacing">
-                  <number>5</number>
+                  <number>10</number>
                  </property>
                  <property name="leftMargin">
                   <number>0</number>
@@ -646,7 +646,7 @@ border-radius: 50;
                   <widget class="QLabel" name="label">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -670,7 +670,7 @@ border-radius: 50;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>13</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -725,7 +725,7 @@ padding: 0 15px;
                   <widget class="QLabel" name="label_2">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -755,7 +755,7 @@ padding: 0 15px;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>12</pointsize>
+                     <pointsize>18</pointsize>
                      <bold>false</bold>
                     </font>
                    </property>
@@ -777,7 +777,7 @@ padding: 0 15px;
                   <widget class="QLabel" name="label_3">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -801,7 +801,7 @@ padding: 0 15px;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>13</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -856,7 +856,7 @@ padding: 0 15px;
                   <widget class="QLabel" name="label_4">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="text">
@@ -886,7 +886,7 @@ padding: 0 15px;
                    </property>
                    <property name="font">
                     <font>
-                     <pointsize>12</pointsize>
+                     <pointsize>18</pointsize>
                     </font>
                    </property>
                    <property name="styleSheet">
@@ -902,7 +902,7 @@ padding: 0 15px;
                     <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
                    </property>
                    <property name="placeholderText">
-                    <string>Create Home Pass</string>
+                    <string>Enter your answer here</string>
                    </property>
                   </widget>
                  </item>
@@ -932,7 +932,7 @@ padding: 0 15px;
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_10">
                  <property name="spacing">
-                  <number>20</number>
+                  <number>15</number>
                  </property>
                  <property name="leftMargin">
                   <number>50</number>
@@ -963,7 +963,7 @@ padding: 0 15px;
                   <widget class="QPushButton" name="signupBtn">
                    <property name="font">
                     <font>
-                     <pointsize>15</pointsize>
+                     <pointsize>20</pointsize>
                      <italic>false</italic>
                     </font>
                    </property>
@@ -992,7 +992,7 @@ max-height: 1px;</string>
                   <widget class="QPushButton" name="backToSignupBtn">
                    <property name="font">
                     <font>
-                     <pointsize>11</pointsize>
+                     <pointsize>15</pointsize>
                      <italic>true</italic>
                     </font>
                    </property>

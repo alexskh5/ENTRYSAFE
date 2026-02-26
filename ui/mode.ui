@@ -336,7 +336,7 @@ border-radius: 30;
                </property>
                <property name="font">
                 <font>
-                 <pointsize>12</pointsize>
+                 <pointsize>14</pointsize>
                  <italic>true</italic>
                 </font>
                </property>
@@ -411,7 +411,7 @@ padding: 0 20px;</string>
                   </property>
                   <property name="font">
                    <font>
-                    <pointsize>13</pointsize>
+                    <pointsize>16</pointsize>
                     <italic>true</italic>
                    </font>
                   </property>
@@ -459,7 +459,7 @@ padding: 0 20px;</string>
               <widget class="QPushButton" name="forgotPassBtn">
                <property name="font">
                 <font>
-                 <pointsize>10</pointsize>
+                 <pointsize>15</pointsize>
                  <italic>true</italic>
                  <underline>true</underline>
                 </font>

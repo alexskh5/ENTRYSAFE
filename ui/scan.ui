@@ -507,7 +507,7 @@ border-radius: 30;</string>
                      <widget class="QLabel" name="label">
                       <property name="font">
                        <font>
-                        <pointsize>15</pointsize>
+                        <pointsize>25</pointsize>
                        </font>
                       </property>
                       <property name="text">
@@ -522,7 +522,7 @@ border-radius: 30;</string>
                      <widget class="QLineEdit" name="scanSearchField">
                       <property name="font">
                        <font>
-                        <pointsize>12</pointsize>
+                        <pointsize>20</pointsize>
                        </font>
                       </property>
                       <property name="styleSheet">
@@ -576,7 +576,7 @@ border-radius: 15;
                      <widget class="QListWidget" name="listWidget">
                       <property name="font">
                        <font>
-                        <pointsize>15</pointsize>
+                        <pointsize>20</pointsize>
                        </font>
                       </property>
                       <property name="styleSheet">

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1316</width>
+    <width>1328</width>
     <height>753</height>
    </rect>
   </property>
@@ -121,7 +121,7 @@ border-radius: 50;
                </property>
                <property name="font">
                 <font>
-                 <pointsize>25</pointsize>
+                 <pointsize>30</pointsize>
                 </font>
                </property>
                <property name="text">
@@ -142,7 +142,7 @@ border-radius: 50;
                </property>
                <property name="font">
                 <font>
-                 <pointsize>18</pointsize>
+                 <pointsize>20</pointsize>
                 </font>
                </property>
                <property name="text">
@@ -228,7 +228,7 @@ border-radius: 50;
                </property>
                <property name="font">
                 <font>
-                 <pointsize>13</pointsize>
+                 <pointsize>18</pointsize>
                 </font>
                </property>
                <property name="styleSheet">
@@ -306,7 +306,7 @@ border-radius: 20;</string>
                   </property>
                   <property name="font">
                    <font>
-                    <pointsize>13</pointsize>
+                    <pointsize>18</pointsize>
                    </font>
                   </property>
                   <property name="styleSheet">
@@ -347,7 +347,7 @@ border-radius: 20;</string>
               <widget class="QPushButton" name="forgotBtn">
                <property name="font">
                 <font>
-                 <pointsize>12</pointsize>
+                 <pointsize>15</pointsize>
                  <italic>true</italic>
                  <underline>false</underline>
                 </font>
@@ -388,7 +388,7 @@ border-radius: 20;</string>
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_6">
              <property name="spacing">
-              <number>30</number>
+              <number>20</number>
              </property>
              <property name="leftMargin">
               <number>50</number>
@@ -419,7 +419,7 @@ border-radius: 20;</string>
               <widget class="QPushButton" name="loginBtn">
                <property name="font">
                 <font>
-                 <pointsize>16</pointsize>
+                 <pointsize>20</pointsize>
                 </font>
                </property>
                <property name="styleSheet">
@@ -447,7 +447,7 @@ max-height: 1px;</string>
               <widget class="QPushButton" name="createBtn">
                <property name="font">
                 <font>
-                 <pointsize>15</pointsize>
+                 <pointsize>20</pointsize>
                  <italic>true</italic>
                 </font>
                </property>
