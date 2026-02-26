@@ -1,25 +1,37 @@
+# ---------------------------
 # Python
+# ---------------------------
 __pycache__/
 *.pyc
 *.pyo
 
-# Virtual env
+# Virtual environments
 venv/
+.venv/
 
+# ---------------------------
 # PyInstaller
+# ---------------------------
 build/
 dist/
 *.spec
 
+# ---------------------------
 # macOS
+# ---------------------------
 .DS_Store
 
-# Uploads (optional)
+# ---------------------------
+# Runtime uploads (DO NOT TRACK)
+# ---------------------------
 uploads/
+uploads/guardians/
+*.jpg
+*.jpeg
+*.png
 
-# Secrets (recommended)
+# ---------------------------
+# Secrets / Local Config
+# ---------------------------
 config.json
 database/config.json
-".venv/" 
-"__pycache__/" 
-"*.pyc" 
