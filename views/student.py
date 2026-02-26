@@ -8,7 +8,8 @@ from os import path
 from PyQt6 import QtWidgets, uic
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QTableWidgetItem
 # from utils.paths import app_dir
-from utils.paths import app_dir, uploads_dir
+from utils.paths import app_dir, uploads_guardians_dir, ensure_runtime_folders
+
 
 from controller.StudentController import StudentController
 
@@ -21,7 +22,8 @@ BASE = app_dir()
 UI_FILE = os.path.join(BASE, "ui", "student.ui")
 BG_FILE = os.path.join(BASE, "assets", "images", "bg1.png")
 # GUARDIAN_DIR_ABS = os.path.join(app_dir(), "uploads", "guardians")
-GUARDIAN_DIR_ABS = uploads_dir()
+ensure_runtime_folders()
+GUARDIAN_DIR_ABS = uploads_guardians_dir()
 
 
 class StudentWindow(QtWidgets.QMainWindow):

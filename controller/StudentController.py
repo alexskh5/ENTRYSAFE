@@ -26,6 +26,7 @@ class StudentController:
             SELECT *
             FROM students
             WHERE username = %s
+            AND is_deleted = FALSE
             ORDER BY createdat ASC;
         """, (username,))
         return self.cursor.fetchall()
@@ -36,22 +37,23 @@ class StudentController:
     def search_students(self, username, term):
         try:
             sql = """
-                SELECT 
-                    studid,
-                    studlname,
-                    studfname,
-                    studmname,
-                    studcontact
-                FROM students
-                WHERE LOWER(username) = LOWER(%s)
-                  AND (
-                        LOWER(studlname) LIKE LOWER(%s)
-                    OR  LOWER(studfname) LIKE LOWER(%s)
-                    OR  LOWER(studmname) LIKE LOWER(%s)
-                    OR  LOWER(studid) LIKE LOWER(%s)
-                  )
-                ORDER BY studlname ASC, studfname ASC;
-            """
+                    SELECT 
+                        studid,
+                        studlname,
+                        studfname,
+                        studmname,
+                        studcontact
+                    FROM students
+                    WHERE LOWER(username) = LOWER(%s)
+                    AND is_deleted = FALSE
+                    AND (
+                            LOWER(studlname) LIKE LOWER(%s)
+                        OR  LOWER(studfname) LIKE LOWER(%s)
+                        OR  LOWER(studmname) LIKE LOWER(%s)
+                        OR  LOWER(studid)   LIKE LOWER(%s)
+                    )
+                    ORDER BY studlname ASC, studfname ASC;
+                """
 
             like_term = f"%{term}%"
             self.cursor.execute(sql, (username, like_term, like_term, like_term, like_term))
@@ -102,12 +104,22 @@ class StudentController:
     # -------------------------------------------------
     # Get single student by username + studID (code)
     # -------------------------------------------------
+    # def get_student(self, username, studID):
+    #     self.cursor.execute("""
+    #         SELECT *
+    #         FROM students
+    #         WHERE username = %s
+    #           AND studid = %s
+    #         LIMIT 1;
+    #     """, (username, studID))
+    #     return self.cursor.fetchone()
     def get_student(self, username, studID):
         self.cursor.execute("""
             SELECT *
             FROM students
             WHERE username = %s
-              AND studid = %s
+                AND is_deleted = FALSE
+                AND studid = %s
             LIMIT 1;
         """, (username, studID))
         return self.cursor.fetchone()

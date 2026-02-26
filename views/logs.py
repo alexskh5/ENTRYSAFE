@@ -137,14 +137,14 @@ class LogsWindow(QtWidgets.QMainWindow):
             return
         try:
             body_font = self.table.font()
-            body_font.setPointSize(15)
+            body_font.setPointSize(20)
             self.table.setFont(body_font)
         except: pass
 
         header = self.table.horizontalHeader()
         try:
             header_font = header.font()
-            header_font.setPointSize(13)
+            header_font.setPointSize(18)
             header_font.setBold(True)
             header.setFont(header_font)
             header.setDefaultAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)

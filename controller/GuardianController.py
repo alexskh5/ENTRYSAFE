@@ -197,7 +197,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from database.connection import Database
-from utils.paths import writable_data_dir  # ✅ writable folder for uploads (mac safe)
+from utils.paths import uploads_guardians_dir, uploads_root_dir
 
 
 class GuardianController:
@@ -209,32 +209,61 @@ class GuardianController:
         self.verification_status = {}
 
         # ✅ Ensure uploads dir exists in a WRITABLE location (not inside .app)
-        self.UPLOAD_DIR = os.path.join(writable_data_dir(), "uploads", "guardians")
-        os.makedirs(self.UPLOAD_DIR, exist_ok=True)
+        # self.UPLOAD_DIR = os.path.join(writable_data_dir(), "uploads", "guardians")
+        # os.makedirs(self.UPLOAD_DIR, exist_ok=True)
+        self.UPLOAD_DIR = uploads_guardians_dir()
 
     # ==============================
     # Path helpers (DB <-> filesystem)
     # ==============================
     def to_db_path(self, abs_path: str) -> str:
         """
-        Convert absolute path to a DB-storable relative path.
-        Stored relative to writable_data_dir().
-
-        Example stored in DB:
-          uploads/guardians/S001_name_123.jpg
+        Store relative to uploads_root_dir() so DB values look like:
+          uploads/guardians/xxx.jpg
         """
-        base = writable_data_dir()
+        base = uploads_root_dir()
         rel = os.path.relpath(abs_path, base)
-        return rel.replace("\\", "/")
+        rel = rel.replace("\\", "/")
+        # ensure it always starts with "uploads/..."
+        if not rel.startswith("uploads/"):
+            rel = "uploads/" + rel.lstrip("/")
+        return rel
 
     def to_abs_path(self, db_path: str) -> str:
         """
-        Convert DB relative path back to absolute path in writable_data_dir().
+        Convert DB path (uploads/guardians/xxx.jpg) to absolute path.
         """
         if not db_path:
             return None
-        base = writable_data_dir()
-        return os.path.join(base, db_path)
+
+        base = uploads_root_dir()
+
+        # normalize db_path
+        p = db_path.replace("\\", "/")
+        if p.startswith("uploads/"):
+            p = p[len("uploads/"):]  # -> guardians/xxx.jpg
+
+        return os.path.join(base, p)
+    # def to_db_path(self, abs_path: str) -> str:
+    #     """
+    #     Convert absolute path to a DB-storable relative path.
+    #     Stored relative to writable_data_dir().
+
+    #     Example stored in DB:
+    #       uploads/guardians/S001_name_123.jpg
+    #     """
+    #     base = writable_data_dir()
+    #     rel = os.path.relpath(abs_path, base)
+    #     return rel.replace("\\", "/")
+
+    # def to_abs_path(self, db_path: str) -> str:
+    #     """
+    #     Convert DB relative path back to absolute path in writable_data_dir().
+    #     """
+    #     if not db_path:
+    #         return None
+    #     base = writable_data_dir()
+    #     return os.path.join(base, db_path)
 
     # ==============================
     # Encode / Decode face embedding

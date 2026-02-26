@@ -111,11 +111,11 @@ class AttendanceWindow(QtWidgets.QMainWindow):
         header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.Stretch)
 
         body_font = self.table.font()
-        body_font.setPointSize(15)
+        body_font.setPointSize(20)
         self.table.setFont(body_font)
 
         header_font = header.font()
-        header_font.setPointSize(13)
+        header_font.setPointSize(18)
         header_font.setBold(True)
         header.setFont(header_font)
         header.setDefaultAlignment(
