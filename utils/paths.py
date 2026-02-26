@@ -41,59 +41,96 @@
 import os
 import sys
 
+APP_NAME = "EntrySafe"
+
+def _mac_bundle_dirs():
+    """
+    If running as a macOS .app bundle:
+    sys.executable -> .../EntrySafe.app/Contents/MacOS/EntrySafe
+    Resources -> .../EntrySafe.app/Contents/Resources
+    """
+    exe_dir = os.path.dirname(os.path.abspath(sys.executable))  # Contents/MacOS
+    contents_dir = os.path.abspath(os.path.join(exe_dir, "..")) # Contents
+    resources_dir = os.path.join(contents_dir, "Resources")
+    return exe_dir, contents_dir, resources_dir
+
 def app_dir():
     """
-    Bundled resource directory.
-    - Dev run: project root
-    - PyInstaller macOS .app: .../EntrySafe.app/Contents/MacOS
+    Returns where bundled resources (ui/assets) live.
+    - Dev: project root
+    - Frozen macOS: Contents/Resources (preferred), fallback Contents/MacOS
     """
     if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
+        exe_dir, _, resources_dir = _mac_bundle_dirs()
+        if os.path.exists(os.path.join(resources_dir, "ui")):
+            return resources_dir
+        return exe_dir  # fallback
     return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-
-def app_bundle_path():
-    """
-    Returns the .app bundle path when frozen on macOS:
-    .../EntrySafe.app
-    Returns None if not running as a macOS .app.
-    """
-    if not getattr(sys, "frozen", False):
-        return None
-
-    # sys.executable: .../EntrySafe.app/Contents/MacOS/EntrySafe
-    macos_dir = os.path.dirname(sys.executable)
-    bundle = os.path.abspath(os.path.join(macos_dir, "..", "..", ".."))
-
-    if bundle.endswith(".app") and os.path.isdir(bundle):
-        return bundle
-    return None
-
-
-def install_dir():
-    """
-    Folder containing the .app bundle.
-    Example:
-      /Applications/EntrySafe-Intel
-      /Applications/EntrySafe-ARM64
-      or any folder the client chooses.
-    """
-    bundle = app_bundle_path()
-    if bundle:
-        return os.path.dirname(bundle)
-
-    # Dev fallback: project root
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
 
 def config_path():
     """
-    Prefer external editable config.json in the same folder as EntrySafe.app.
-    Fallback to bundled config.json inside Contents/MacOS if external not found.
-    """
-    external = os.path.join(install_dir(), "config.json")
-    if os.path.exists(external):
-        return external
+    Config is editable, so we try EXTERNAL first, then fallback INTERNAL.
 
-    # fallback (inside bundle)
-    return os.path.join(app_dir(), "config.json")
+    External search order:
+    1) Folder where the .app sits (recommended: keep release folder intact)
+       e.g. release/config.json beside EntrySafe.app
+    2) ~/Library/Application Support/EntrySafe/config.json (safe place on mac)
+
+    Internal fallback:
+    - Inside bundled resources (Contents/Resources/config.json)
+    """
+    # DEV mode
+    if not getattr(sys, "frozen", False):
+        p = os.path.join(app_dir(), "config.json")
+        return p
+
+    exe_dir, _, resources_dir = _mac_bundle_dirs()
+
+    # 1) beside the .app bundle (parent folder of EntrySafe.app)
+    # exe_dir = .../EntrySafe.app/Contents/MacOS
+    app_bundle = os.path.abspath(os.path.join(exe_dir, "..", ".."))   # .../EntrySafe.app
+    app_parent = os.path.dirname(app_bundle)                          # folder containing EntrySafe.app
+    external1 = os.path.join(app_parent, "config.json")
+    if os.path.exists(external1):
+        return external1
+
+    # 2) Application Support
+    external2_dir = os.path.join(
+        os.path.expanduser("~"),
+        "Library", "Application Support", APP_NAME
+    )
+    external2 = os.path.join(external2_dir, "config.json")
+    if os.path.exists(external2):
+        return external2
+
+    # Internal fallback (bundled)
+    internal = os.path.join(resources_dir, "config.json")
+    return internal
+
+
+
+def writable_data_dir():
+    """
+    A folder we can write to on mac/windows.
+    mac: ~/Library/Application Support/EntrySafe
+    """
+    if getattr(sys, "frozen", False) and sys.platform == "darwin":
+        base = os.path.join(
+            os.path.expanduser("~"),
+            "Library", "Application Support", APP_NAME
+        )
+    else:
+        # dev / windows fallback: project folder or beside exe
+        base = app_dir()
+
+    os.makedirs(base, exist_ok=True)
+    return base
+
+def uploads_dir():
+    """
+    Where scanned images are saved.
+    """
+    base = writable_data_dir()
+    p = os.path.join(base, "uploads", "guardians")
+    os.makedirs(p, exist_ok=True)
+    return p
