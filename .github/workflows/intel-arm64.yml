@@ -1,4 +1,4 @@
-name: Build EntrySafe macOS (Intel + Apple Silicon) - cv2 fixed (no recursion + config)
+name: Build EntrySafe macOS (Intel + Apple Silicon) - OpenCV stable + signing stable
 
 on:
   push:
@@ -56,21 +56,15 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Prepare OpenCV config files (IMPORTANT)
+      - name: Extract OpenCV config files (config.py etc.)
         run: |
           set -euo pipefail
           rm -rf cv2_runtime
           mkdir -p cv2_runtime
           python - << 'PY'
           import cv2, os, shutil, glob
-          pkg_dir = os.path.dirname(cv2.__file__)  # .../site-packages/cv2
-          patterns = [
-            "config.py",
-            "config-*.py",
-            "load_config_py3.py",
-            "load_config_py2.py",
-            "*.xml",
-          ]
+          pkg_dir = os.path.dirname(cv2.__file__)  # site-packages/cv2
+          patterns = ["config.py", "config-*.py", "load_config_py3.py", "load_config_py2.py", "*.xml"]
           copied = []
           for pat in patterns:
             for src in glob.glob(os.path.join(pkg_dir, pat)):
@@ -83,34 +77,28 @@ jobs:
             raise SystemExit("ERROR: cv2 config.py not found/copied")
           PY
 
-      - name: Create runtime hook (remove '.' + dedupe Frameworks; safe)
+      - name: Create runtime hook (remove '.' from sys.path)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
           import os, sys
-
-          # Always start from a safe working directory (avoid running inside app folder)
           try:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
 
-          # Remove ONLY the dangerous entries that cause cv2 recursion
-          # and dedupe duplicated Frameworks paths.
-          new_path = []
+          cleaned = []
           seen = set()
-
           for p in list(sys.path):
               if p in ("", "."):
                   continue
-
               np = os.path.normpath(p)
               if np in seen:
                   continue
               seen.add(np)
-              new_path.append(p)
+              cleaned.append(p)
 
-          sys.path[:] = new_path
+          sys.path[:] = cleaned
           EOF
 
       - name: Build app (PyInstaller) - Intel
@@ -122,8 +110,6 @@ jobs:
             --paths . \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
-            --hidden-import cv2.cv2 \
-            --add-data "cv2_runtime:cv2" \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -153,7 +139,7 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           echo "Found APP_PATH=$APP_PATH"
 
-      - name: Remove ONLY duplicate Resources/cv2 (keep Frameworks/cv2)
+      - name: Remove ONLY duplicate Resources/cv2 (prevents recursion)
         run: |
           set -euo pipefail
           if [ -d "$APP_PATH/Contents/Resources/cv2" ]; then
@@ -163,7 +149,16 @@ jobs:
             echo "No Resources/cv2 found (good)."
           fi
 
-      - name: Bundle libintl for Intel (prevents @rpath/libintl.8.dylib crash)
+      - name: Copy OpenCV config.py into built cv2 package (FIXES loader errors)
+        run: |
+          set -euo pipefail
+          CV2_DST="$APP_PATH/Contents/Frameworks/cv2"
+          test -d "$CV2_DST" || (echo "ERROR: Built cv2 folder not found at $CV2_DST" && ls -ლა "$APP_PATH/Contents/Frameworks" && exit 1)
+          cp -f cv2_runtime/* "$CV2_DST/" || true
+          echo "Copied OpenCV config files into: $CV2_DST"
+          ls -la "$CV2_DST" | head -n 60
+
+      - name: Bundle libintl/libiconv for Intel (prevents @rpath crash)
         run: |
           set -euo pipefail
           brew update >/dev/null 2>&1 || true
@@ -171,11 +166,11 @@ jobs:
           GETTEXT_PREFIX="$(brew --prefix gettext)"
           if [ -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" ]; then
             cp -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" "$APP_PATH/Contents/Frameworks/"
-            echo "Copied libintl.8.dylib into Frameworks."
+            echo "Copied libintl.8.dylib"
           fi
           if [ -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" ]; then
             cp -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" "$APP_PATH/Contents/Frameworks/"
-            echo "Copied libiconv.2.dylib into Frameworks."
+            echo "Copied libiconv.2.dylib"
           fi
 
       - name: Add Camera/Mic usage strings (Intel)
@@ -204,44 +199,45 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (Intel) - sign nested dylibs incl. symlinks
+      - name: Ad-hoc sign (Intel) - robust (includes symlink targets)
         run: |
           set -euo pipefail
           echo "Signing: $APP_PATH"
           test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
 
-          # Clean any previous signature
+          # Clean previous signature
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
 
-          # 1) Sign EVERY dylib/so under Frameworks (including symlinks)
+          sign_one () {
+            local item="$1"
+            if [ -L "$item" ]; then
+              # Sign the real target of symlink
+              local tgt
+              tgt="$(python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$item")"
+              echo "Signing symlink target: $tgt"
+              codesign --force --timestamp=none --sign - "$tgt"
+            else
+              echo "Signing: $item"
+              codesign --force --timestamp=none --sign - "$item"
+            fi
+          }
+
+          # 1) Sign Frameworks dylibs/so first (files + symlinks)
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
             while IFS= read -r -d '' f; do
-              # If it's a symlink, sign the resolved target (codesign on symlink is flaky)
-              if [ -L "$f" ]; then
-                tgt="$(python - << 'PY'
-          import os,sys
-          p=sys.argv[1]
-          print(os.path.realpath(p))
-          PY
-          "$f")"
-                          echo "Signing (symlink target): $tgt"
-                          codesign --force --timestamp=none --sign - "$tgt"
-                        else
-                          echo "Signing: $f"
-                          codesign --force --timestamp=none --sign - "$f"
-                        fi
-                      done < <(find "$APP_PATH/Contents/Frameworks" \( -type f -o -type l \) \
-                                \( -name "*.dylib" -o -name "*.so" \) -print0)
-                    fi
-          
-                    # 2) Sign the main executable
-                    codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
-          
-                    # 3) Sign the app bundle last
-                    codesign --force --timestamp=none --sign - "$APP_PATH"
-          
-                    # Verify (no --deep; deep can hide problems instead of fixing them)
-                    codesign --verify --verbose=4 "$APP_PATH"
+              sign_one "$f"
+            done < <(find "$APP_PATH/Contents/Frameworks" \( -type f -o -type l \) \
+                      \( -name "*.dylib" -o -name "*.so" \) -print0)
+          fi
+
+          # 2) Sign main executable
+          sign_one "$APP_PATH/Contents/MacOS/EntrySafe"
+
+          # 3) Sign bundle last
+          sign_one "$APP_PATH"
+
+          # Verify
+          codesign --verify --verbose=4 "$APP_PATH"
 
       - name: Package Intel release
         run: |
@@ -284,7 +280,6 @@ jobs:
           pip uninstall -y opencv-python-headless opencv-contrib-python opencv-contrib-python-headless opencv-python numpy || true
           pip install "setuptools==69.0.3" "wheel==0.42.0"
           pip install "numpy${{ env.NUMPY_VERSION }}"
-          pip install "pyinstaller==${{ env.PYTHON_VERSION }}" || true
           pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
           pip install "opencv-python==${{ env.OPENCV_VERSION }}"
           pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
@@ -308,7 +303,7 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Prepare OpenCV config files (IMPORTANT)
+      - name: Extract OpenCV config files (config.py etc.)
         run: |
           set -euo pipefail
           rm -rf cv2_runtime
@@ -316,13 +311,7 @@ jobs:
           python - << 'PY'
           import cv2, os, shutil, glob
           pkg_dir = os.path.dirname(cv2.__file__)
-          patterns = [
-            "config.py",
-            "config-*.py",
-            "load_config_py3.py",
-            "load_config_py2.py",
-            "*.xml",
-          ]
+          patterns = ["config.py", "config-*.py", "load_config_py3.py", "load_config_py2.py", "*.xml"]
           copied = []
           for pat in patterns:
             for src in glob.glob(os.path.join(pkg_dir, pat)):
@@ -335,7 +324,7 @@ jobs:
             raise SystemExit("ERROR: cv2 config.py not found/copied")
           PY
 
-      - name: Create runtime hook (remove '.' + dedupe Frameworks; safe)
+      - name: Create runtime hook (remove '.' from sys.path)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
@@ -344,10 +333,8 @@ jobs:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
-
-          new_path = []
+          cleaned = []
           seen = set()
-
           for p in list(sys.path):
               if p in ("", "."):
                   continue
@@ -355,9 +342,8 @@ jobs:
               if np in seen:
                   continue
               seen.add(np)
-              new_path.append(p)
-
-          sys.path[:] = new_path
+              cleaned.append(p)
+          sys.path[:] = cleaned
           EOF
 
       - name: Build app (PyInstaller) - ARM64
@@ -369,8 +355,6 @@ jobs:
             --paths . \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
-            --hidden-import cv2.cv2 \
-            --add-data "cv2_runtime:cv2" \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -400,7 +384,7 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           echo "Found APP_PATH=$APP_PATH"
 
-      - name: Remove ONLY duplicate Resources/cv2 (keep Frameworks/cv2)
+      - name: Remove ONLY duplicate Resources/cv2 (prevents recursion)
         run: |
           set -euo pipefail
           if [ -d "$APP_PATH/Contents/Resources/cv2" ]; then
@@ -409,6 +393,15 @@ jobs:
           else
             echo "No Resources/cv2 found (good)."
           fi
+
+      - name: Copy OpenCV config.py into built cv2 package (FIXES loader errors)
+        run: |
+          set -euo pipefail
+          CV2_DST="$APP_PATH/Contents/Frameworks/cv2"
+          test -d "$CV2_DST" || (echo "ERROR: Built cv2 folder not found at $CV2_DST" && ls -la "$APP_PATH/Contents/Frameworks" && exit 1)
+          cp -f cv2_runtime/* "$CV2_DST/" || true
+          echo "Copied OpenCV config files into: $CV2_DST"
+          ls -la "$CV2_DST" | head -n 60
 
       - name: Add Camera/Mic usage strings (ARM64)
         run: |
@@ -436,16 +429,35 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (ARM64)
+      - name: Ad-hoc sign (ARM64) - robust
         run: |
           set -euo pipefail
+          echo "Signing: $APP_PATH"
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
-          codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
+
+          sign_one () {
+            local item="$1"
+            if [ -L "$item" ]; then
+              local tgt
+              tgt="$(python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$item")"
+              echo "Signing symlink target: $tgt"
+              codesign --force --timestamp=none --sign - "$tgt"
+            else
+              echo "Signing: $item"
+              codesign --force --timestamp=none --sign - "$item"
+            fi
+          }
+
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
-            find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 \
-              | xargs -0 -I{} codesign --force --timestamp=none --sign - "{}"
+            while IFS= read -r -d '' f; do
+              sign_one "$f"
+            done < <(find "$APP_PATH/Contents/Frameworks" \( -type f -o -type l \) \
+                      \( -name "*.dylib" -o -name "*.so" \) -print0)
           fi
-          codesign --force --timestamp=none --sign - "$APP_PATH"
+
+          sign_one "$APP_PATH/Contents/MacOS/EntrySafe"
+          sign_one "$APP_PATH"
           codesign --verify --verbose=4 "$APP_PATH"
 
       - name: Package ARM64 release
