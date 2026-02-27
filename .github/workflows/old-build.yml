@@ -23,43 +23,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller opencv-python face_recognition face_recognition_models PyQt6 psycopg2-binary
 
-      - name: Debug - list repo files and config templates
-        run: |
-          pwd
-          ls -la
-          echo "---- config candidates ----"
-          find . -maxdepth 3 -name "config*.json" -print
-
       - name: Prepare default config.json (for packaging)
         run: |
           if [ -f config.example.json ]; then
-            echo "Using config.example.json"
             cp config.example.json config.json
           elif [ -f config.template.json ]; then
-            echo "Using config.template.json"
             cp config.template.json config.json
-          elif [ -f database/config.example.json ]; then
-            echo "Using database/config.example.json"
-            cp database/config.example.json config.json
-          elif [ -f database/config.template.json ]; then
-            echo "Using database/config.template.json"
-            cp database/config.template.json config.json
           else
-            echo "ERROR: No config template found."
-            echo "Files found:"
-            find . -maxdepth 3 -name "config*.json" -print
+            echo "ERROR: No config template found (config.example.json or config.template.json)."
+            echo "Found:"
+            find . -maxdepth 2 -name "config*.json" -print
             exit 1
           fi
           test -f config.json || (echo "config.json missing" && exit 1)
-          echo "Created config.json:"
-          ls -la config.json
 
-      # ✅ IMPORTANT: create runtime folders that are gitignored
       - name: Create runtime folders (uploads)
         run: |
           mkdir -p uploads/guardians
-          ls -la uploads
-          ls -la uploads/guardians
 
       - name: Build macOS App (PyInstaller)
         run: |
@@ -78,13 +58,29 @@ jobs:
             --add-data "uploads:uploads" \
             main.py
 
+      - name: Debug - show dist output
+        run: |
+          echo "---- dist tree (top) ----"
+          ls -la dist || true
+          find dist -maxdepth 2 -print || true
+
       - name: Create release folder with editable config.json
         run: |
           rm -rf release
           mkdir -p release
-          test -d "dist/EntrySafe/EntrySafe.app" || (echo "EntrySafe.app missing" && find dist -maxdepth 5 -print && exit 1)
 
-          cp -R "dist/EntrySafe/EntrySafe.app" release/
+          if [ -d "dist/EntrySafe.app" ]; then
+            echo "Found dist/EntrySafe.app"
+            cp -R "dist/EntrySafe.app" release/
+          elif [ -d "dist/EntrySafe/EntrySafe.app" ]; then
+            echo "Found dist/EntrySafe/EntrySafe.app"
+            cp -R "dist/EntrySafe/EntrySafe.app" release/
+          else
+            echo "EntrySafe.app missing in dist/"
+            find dist -maxdepth 3 -print
+            exit 1
+          fi
+
           cp config.json release/
           ls -la release
 
