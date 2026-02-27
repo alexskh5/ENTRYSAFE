@@ -204,17 +204,44 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (Intel)
+      - name: Ad-hoc sign (Intel) - sign nested dylibs incl. symlinks
         run: |
           set -euo pipefail
+          echo "Signing: $APP_PATH"
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
+
+          # Clean any previous signature
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
-          codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
+
+          # 1) Sign EVERY dylib/so under Frameworks (including symlinks)
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
-            find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 \
-              | xargs -0 -I{} codesign --force --timestamp=none --sign - "{}"
-          fi
-          codesign --force --timestamp=none --sign - "$APP_PATH"
-          codesign --verify --verbose=4 "$APP_PATH"
+            while IFS= read -r -d '' f; do
+              # If it's a symlink, sign the resolved target (codesign on symlink is flaky)
+              if [ -L "$f" ]; then
+                tgt="$(python - << 'PY'
+          import os,sys
+          p=sys.argv[1]
+          print(os.path.realpath(p))
+          PY
+          "$f")"
+                          echo "Signing (symlink target): $tgt"
+                          codesign --force --timestamp=none --sign - "$tgt"
+                        else
+                          echo "Signing: $f"
+                          codesign --force --timestamp=none --sign - "$f"
+                        fi
+                      done < <(find "$APP_PATH/Contents/Frameworks" \( -type f -o -type l \) \
+                                \( -name "*.dylib" -o -name "*.so" \) -print0)
+                    fi
+          
+                    # 2) Sign the main executable
+                    codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
+          
+                    # 3) Sign the app bundle last
+                    codesign --force --timestamp=none --sign - "$APP_PATH"
+          
+                    # Verify (no --deep; deep can hide problems instead of fixing them)
+                    codesign --verify --verbose=4 "$APP_PATH"
 
       - name: Package Intel release
         run: |
