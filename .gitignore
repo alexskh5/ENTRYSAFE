@@ -24,11 +24,11 @@ dist/
 # # ---------------------------
 # # Runtime uploads (DO NOT TRACK)
 # # ---------------------------
-# uploads/
-# uploads/guardians/
-# *.jpg
-# *.jpeg
-# *.png
+uploads/
+uploads/guardians/
+*.jpg
+*.jpeg
+*.png
 
 # ---------------------------
 # Secrets / Local Config
