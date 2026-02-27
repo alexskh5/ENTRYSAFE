@@ -1,4 +1,4 @@
-name: Build EntrySafe macOS (Intel + Apple Silicon) - cv2 stable (no recursion)
+name: Build EntrySafe macOS (Intel + Apple Silicon) - cv2 fixed (no recursion + config)
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
           pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
           pip install "opencv-python==${{ env.OPENCV_VERSION }}"
           pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
-          python -c "import cv2, numpy; print('OpenCV', cv2.__version__, 'NumPy', numpy.__version__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
+          python -c "import cv2; import os; print('cv2:', cv2.__version__, 'file:', cv2.__file__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
 
       - name: Create config.json template
         run: |
@@ -56,24 +56,61 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Create PyInstaller hook for cv2 (forces correct cv2.cv2 collection)
+      - name: Prepare OpenCV config files (IMPORTANT)
         run: |
           set -euo pipefail
-          mkdir -p hooks
-          cat > hooks/hook-cv2.py << 'EOF'
-          from PyInstaller.utils.hooks import collect_all
-          datas, binaries, hiddenimports = collect_all("cv2")
-          EOF
+          rm -rf cv2_runtime
+          mkdir -p cv2_runtime
+          python - << 'PY'
+          import cv2, os, shutil, glob
+          pkg_dir = os.path.dirname(cv2.__file__)  # .../site-packages/cv2
+          patterns = [
+            "config.py",
+            "config-*.py",
+            "load_config_py3.py",
+            "load_config_py2.py",
+            "*.xml",
+          ]
+          copied = []
+          for pat in patterns:
+            for src in glob.glob(os.path.join(pkg_dir, pat)):
+              dst = os.path.join("cv2_runtime", os.path.basename(src))
+              shutil.copy2(src, dst)
+              copied.append(dst)
+          print("cv2 pkg dir:", pkg_dir)
+          print("copied:", copied)
+          if not any(os.path.basename(x) == "config.py" for x in copied):
+            raise SystemExit("ERROR: cv2 config.py not found/copied")
+          PY
 
-      - name: Create runtime hook (ONLY safe cwd; DO NOT touch sys.path)
+      - name: Create runtime hook (remove '.' + dedupe Frameworks; safe)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
-          import os
+          import os, sys
+
+          # Always start from a safe working directory (avoid running inside app folder)
           try:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
+
+          # Remove ONLY the dangerous entries that cause cv2 recursion
+          # and dedupe duplicated Frameworks paths.
+          new_path = []
+          seen = set()
+
+          for p in list(sys.path):
+              if p in ("", "."):
+                  continue
+
+              np = os.path.normpath(p)
+              if np in seen:
+                  continue
+              seen.add(np)
+              new_path.append(p)
+
+          sys.path[:] = new_path
           EOF
 
       - name: Build app (PyInstaller) - Intel
@@ -83,10 +120,10 @@ jobs:
             --icon assets/icons/appLogo.icns \
             --osx-bundle-identifier com.entrysafe.app \
             --paths . \
-            --additional-hooks-dir hooks \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
             --hidden-import cv2.cv2 \
+            --add-data "cv2_runtime:cv2" \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -126,11 +163,20 @@ jobs:
             echo "No Resources/cv2 found (good)."
           fi
 
-      - name: Sanity check cv2 inside bundle (Intel)
+      - name: Bundle libintl for Intel (prevents @rpath/libintl.8.dylib crash)
         run: |
           set -euo pipefail
-          echo "cv2 binaries:"
-          find "$APP_PATH/Contents" -iname "*cv2*.so" -o -iname "cv2.abi3.so" || true
+          brew update >/dev/null 2>&1 || true
+          brew install gettext >/dev/null 2>&1 || true
+          GETTEXT_PREFIX="$(brew --prefix gettext)"
+          if [ -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" ]; then
+            cp -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" "$APP_PATH/Contents/Frameworks/"
+            echo "Copied libintl.8.dylib into Frameworks."
+          fi
+          if [ -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" ]; then
+            cp -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" "$APP_PATH/Contents/Frameworks/"
+            echo "Copied libiconv.2.dylib into Frameworks."
+          fi
 
       - name: Add Camera/Mic usage strings (Intel)
         run: |
@@ -144,7 +190,6 @@ jobs:
       - name: Remove broken symlinks inside app (fix codesign ENOENT)
         run: |
           set -euo pipefail
-          echo "Scanning for broken symlinks in: $APP_PATH"
           while IFS= read -r -d '' link; do
             target="$(readlink "$link" || true)"
             dir="$(dirname "$link")"
@@ -159,19 +204,15 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (stable) - bundle-safe
+      - name: Ad-hoc sign (Intel)
         run: |
           set -euo pipefail
-          echo "Signing: $APP_PATH"
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
-
           codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
-
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
             find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 \
               | xargs -0 -I{} codesign --force --timestamp=none --sign - "{}"
           fi
-
           codesign --force --timestamp=none --sign - "$APP_PATH"
           codesign --verify --verbose=4 "$APP_PATH"
 
@@ -216,10 +257,11 @@ jobs:
           pip uninstall -y opencv-python-headless opencv-contrib-python opencv-contrib-python-headless opencv-python numpy || true
           pip install "setuptools==69.0.3" "wheel==0.42.0"
           pip install "numpy${{ env.NUMPY_VERSION }}"
+          pip install "pyinstaller==${{ env.PYTHON_VERSION }}" || true
           pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
           pip install "opencv-python==${{ env.OPENCV_VERSION }}"
           pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
-          python -c "import cv2, numpy; print('OpenCV', cv2.__version__, 'NumPy', numpy.__version__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
+          python -c "import cv2; import os; print('cv2:', cv2.__version__, 'file:', cv2.__file__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
 
       - name: Create config.json template
         run: |
@@ -239,24 +281,56 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Create PyInstaller hook for cv2 (forces correct cv2.cv2 collection)
+      - name: Prepare OpenCV config files (IMPORTANT)
         run: |
           set -euo pipefail
-          mkdir -p hooks
-          cat > hooks/hook-cv2.py << 'EOF'
-          from PyInstaller.utils.hooks import collect_all
-          datas, binaries, hiddenimports = collect_all("cv2")
-          EOF
+          rm -rf cv2_runtime
+          mkdir -p cv2_runtime
+          python - << 'PY'
+          import cv2, os, shutil, glob
+          pkg_dir = os.path.dirname(cv2.__file__)
+          patterns = [
+            "config.py",
+            "config-*.py",
+            "load_config_py3.py",
+            "load_config_py2.py",
+            "*.xml",
+          ]
+          copied = []
+          for pat in patterns:
+            for src in glob.glob(os.path.join(pkg_dir, pat)):
+              dst = os.path.join("cv2_runtime", os.path.basename(src))
+              shutil.copy2(src, dst)
+              copied.append(dst)
+          print("cv2 pkg dir:", pkg_dir)
+          print("copied:", copied)
+          if not any(os.path.basename(x) == "config.py" for x in copied):
+            raise SystemExit("ERROR: cv2 config.py not found/copied")
+          PY
 
-      - name: Create runtime hook (ONLY safe cwd; DO NOT touch sys.path)
+      - name: Create runtime hook (remove '.' + dedupe Frameworks; safe)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
-          import os
+          import os, sys
           try:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
+
+          new_path = []
+          seen = set()
+
+          for p in list(sys.path):
+              if p in ("", "."):
+                  continue
+              np = os.path.normpath(p)
+              if np in seen:
+                  continue
+              seen.add(np)
+              new_path.append(p)
+
+          sys.path[:] = new_path
           EOF
 
       - name: Build app (PyInstaller) - ARM64
@@ -266,10 +340,10 @@ jobs:
             --icon assets/icons/appLogo.icns \
             --osx-bundle-identifier com.entrysafe.app \
             --paths . \
-            --additional-hooks-dir hooks \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
             --hidden-import cv2.cv2 \
+            --add-data "cv2_runtime:cv2" \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -309,12 +383,6 @@ jobs:
             echo "No Resources/cv2 found (good)."
           fi
 
-      - name: Sanity check cv2 inside bundle (ARM64)
-        run: |
-          set -euo pipefail
-          echo "cv2 binaries:"
-          find "$APP_PATH/Contents" -iname "*cv2*.so" -o -iname "cv2.abi3.so" || true
-
       - name: Add Camera/Mic usage strings (ARM64)
         run: |
           set -euo pipefail
@@ -327,7 +395,6 @@ jobs:
       - name: Remove broken symlinks inside app (fix codesign ENOENT)
         run: |
           set -euo pipefail
-          echo "Scanning for broken symlinks in: $APP_PATH"
           while IFS= read -r -d '' link; do
             target="$(readlink "$link" || true)"
             dir="$(dirname "$link")"
@@ -342,19 +409,15 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (stable) - bundle-safe
+      - name: Ad-hoc sign (ARM64)
         run: |
           set -euo pipefail
-          echo "Signing: $APP_PATH"
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
-
           codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe"
-
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
             find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -print0 \
               | xargs -0 -I{} codesign --force --timestamp=none --sign - "{}"
           fi
-
           codesign --force --timestamp=none --sign - "$APP_PATH"
           codesign --verify --verbose=4 "$APP_PATH"
 
