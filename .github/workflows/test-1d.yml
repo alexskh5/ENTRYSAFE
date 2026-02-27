@@ -1,0 +1,492 @@
+name: Build EntrySafe macOS (Intel + Apple Silicon) - FINAL OpenCV + signing
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.10"
+  OPENCV_VERSION: "4.9.0.80"
+  PYINSTALLER_VERSION: "6.3.0"
+  PYINSTALLER_HOOKS_VERSION: "2024.2"
+  NUMPY_VERSION: "<2.0.0"
+
+jobs:
+  build-macos-intel:
+    name: Build macOS Intel (x86_64)
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install deps (Intel)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip uninstall -y opencv-python-headless opencv-contrib-python opencv-contrib-python-headless opencv-python numpy || true
+          pip install "setuptools==69.0.3" "wheel==0.42.0"
+          pip install "numpy${{ env.NUMPY_VERSION }}"
+          pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
+          # Install OpenCV WITHOUT dependencies to avoid conflicts
+          pip install --no-deps "opencv-python==${{ env.OPENCV_VERSION }}"
+          # Install face_recognition and its dependencies
+          pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
+          # Verify OpenCV works
+          python -c "import cv2; print('cv2:', cv2.__version__, cv2.__file__, 'VideoCapture?', hasattr(cv2,'VideoCapture')); assert hasattr(cv2, 'VideoCapture'), 'VideoCapture missing!'"
+          
+      - name: Create config.json template
+        run: |
+          set -euo pipefail
+          cat > config.json << 'EOF'
+          {
+            "DB_HOST": "CHANGE_ME",
+            "DB_PORT": 5432,
+            "DB_NAME": "CHANGE_ME",
+            "DB_USER": "CHANGE_ME",
+            "DB_PASS": "CHANGE_ME"
+          }
+          EOF
+          
+      - name: Check icon exists
+        run: |
+          set -euo pipefail
+          test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
+          
+      - name: Create OpenCV hook to fix import
+        run: |
+          set -euo pipefail
+          # Create hooks directory
+          mkdir -p hooks
+          
+          # Create hook for opencv-python
+          cat > hooks/hook-opencv-python.py << 'EOF'
+          from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+          
+          # Collect all dynamic libraries
+          binaries = collect_dynamic_libs('cv2')
+          
+          # Make sure we get the real cv2 module
+          def hook(hook_api):
+              # This ensures the module is properly imported
+              hook_api.add_imports('cv2')
+              hook_api.add_imports('cv2.cv2')
+              
+              # Hide the cv2 package from being treated as a namespace
+              hook_api._module._namespace_packages = []
+          EOF
+          
+          # Create runtime hook to fix cv2 import
+          cat > runtime_hook.py << 'EOF'
+          import os
+          import sys
+          import importlib.util
+          
+          def fix_cv2_import():
+              """Ensure cv2 imports correctly by loading the real .so file"""
+              try:
+                  # First, try to find the real cv2 .so file
+                  fw_dir = None
+                  
+                  # Find Frameworks directory
+                  exe = sys.executable
+                  contents = os.path.dirname(os.path.dirname(exe))
+                  fw_dir = os.path.join(contents, "Frameworks")
+                  
+                  if fw_dir and os.path.isdir(fw_dir):
+                      # Look for cv2 .so file
+                      for root, dirs, files in os.walk(fw_dir):
+                          for file in files:
+                              if file == 'cv2.abi3.so' or file.startswith('cv2.') and file.endswith('.so'):
+                                  so_path = os.path.join(root, file)
+                                  # Load the module directly
+                                  spec = importlib.util.spec_from_file_location("cv2", so_path)
+                                  if spec and spec.loader:
+                                      cv2_module = importlib.util.module_from_spec(spec)
+                                      spec.loader.exec_module(cv2_module)
+                                      sys.modules['cv2'] = cv2_module
+                                      sys.modules['cv2.cv2'] = cv2_module
+                                      print(f"Successfully loaded cv2 from {so_path}")
+                                      return
+              except Exception as e:
+                  print(f"Error fixing cv2 import: {e}")
+              
+              # Fallback: try normal import
+              try:
+                  import cv2
+                  print(f"Normal import cv2 from {cv2.__file__}")
+              except:
+                  pass
+          
+          # Safe cwd
+          try:
+              os.chdir(os.path.expanduser("~"))
+          except Exception:
+              pass
+          
+          # Fix cv2 import first
+          fix_cv2_import()
+          
+          # Clean up path to avoid current directory imports
+          cleaned = []
+          seen = set()
+          for p in sys.path:
+              if p in ("", "."):
+                  continue
+              norm_p = os.path.normpath(p)
+              if norm_p in seen:
+                  continue
+              seen.add(norm_p)
+              cleaned.append(p)
+          sys.path[:] = cleaned
+          EOF
+          
+      - name: Build app (PyInstaller) - Intel (FIXED OpenCV approach)
+        run: |
+          set -euo pipefail
+          pyinstaller --noconfirm --clean --windowed --onedir --name "EntrySafe" \
+            --icon assets/icons/appLogo.icns \
+            --osx-bundle-identifier com.entrysafe.app \
+            --paths . \
+            --additional-hooks-dir hooks \
+            --runtime-hook runtime_hook.py \
+            --hidden-import cv2 \
+            --hidden-import cv2.cv2 \
+            --hidden-import face_recognition \
+            --hidden-import face_recognition_models \
+            --hidden-import views \
+            --hidden-import utils \
+            --hidden-import utils.paths \
+            --collect-data face_recognition_models \
+            --collect-submodules views \
+            --collect-submodules utils \
+            --add-data "assets:assets" \
+            --add-data "ui:ui" \
+            --add-data "config.json:." \
+            main.py
+            
+      - name: Locate app bundle (Intel)
+        run: |
+          set -euo pipefail
+          if [ -d "dist/EntrySafe.app" ]; then
+            APP_PATH="dist/EntrySafe.app"
+          elif [ -d "dist/EntrySafe/EntrySafe.app" ]; then
+            APP_PATH="dist/EntrySafe/EntrySafe.app"
+          else
+            APP_PATH="$(find dist -name "EntrySafe.app" -type d | head -n 1)"
+          fi
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Found APP_PATH=$APP_PATH"
+          
+      - name: Fix OpenCV in app bundle
+        run: |
+          set -euo pipefail
+          
+          # Remove any problematic cv2 directories
+          rm -rf "$APP_PATH/Contents/Resources/cv2" 2>/dev/null || true
+          rm -rf "$APP_PATH/Contents/MacOS/cv2" 2>/dev/null || true
+          
+          # Ensure cv2 is only in Frameworks
+          if [ -d "$APP_PATH/Contents/Frameworks/cv2" ]; then
+            # Make sure the .so file is directly accessible
+            find "$APP_PATH/Contents/Frameworks/cv2" -name "*.so" -exec cp {} "$APP_PATH/Contents/Frameworks/" \; 2>/dev/null || true
+          fi
+          
+      - name: Bundle libintl/libiconv for Intel (prevents @rpath/libintl.8.dylib crash)
+        run: |
+          set -euo pipefail
+          brew update >/dev/null 2>&1 || true
+          brew install gettext >/dev/null 2>&1 || true
+          GETTEXT_PREFIX="$(brew --prefix gettext)"
+          if [ -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" ]; then
+            cp -f "$GETTEXT_PREFIX/lib/libintl.8.dylib" "$APP_PATH/Contents/Frameworks/" || true
+            echo "Copied libintl.8.dylib"
+          fi
+          if [ -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" ]; then
+            cp -f "$GETTEXT_PREFIX/lib/libiconv.2.dylib" "$APP_PATH/Contents/Frameworks/" || true
+            echo "Copied libiconv.2.dylib"
+          fi
+          
+      - name: Add Camera/Mic usage strings (Intel)
+        run: |
+          set -euo pipefail
+          PLIST="$APP_PATH/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'EntrySafe needs camera access to scan and verify faces for security.'" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'EntrySafe needs camera access to scan and verify faces for security.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'EntrySafe may access the microphone if required by the camera device.'" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'EntrySafe may access the microphone if required by the camera device.'" "$PLIST"
+          
+      - name: Remove broken symlinks
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' link; do
+            target="$(readlink "$link" || true)"
+            if [ -n "$target" ] && [ ! -e "$(dirname "$link")/$target" ] && [ ! -e "$target" ]; then
+              echo "BROKEN: $link -> $target"
+              rm -f "$link"
+            fi
+          done < <(find "$APP_PATH" -type l -print0)
+          
+      - name: Ad-hoc sign (Intel)
+        run: |
+          set -euo pipefail
+          echo "Signing: $APP_PATH"
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
+          
+          # Sign frameworks first
+          if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+            find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -exec codesign --force --timestamp=none --sign - {} \; 2>/dev/null || true
+          fi
+          
+          # Sign the main executable and app
+          codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe" 2>/dev/null || true
+          codesign --force --timestamp=none --sign - "$APP_PATH" 2>/dev/null || true
+          
+      - name: Package Intel release
+        run: |
+          set -euo pipefail
+          rm -rf "EntrySafe-Intel"
+          mkdir -p "EntrySafe-Intel/uploads/guardians"
+          cp -R "$APP_PATH" "EntrySafe-Intel/"
+          cp "config.json" "EntrySafe-Intel/"
+          cat > "EntrySafe-Intel/launch.command" << 'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          ./EntrySafe.app/Contents/MacOS/EntrySafe
+          EOF
+          chmod +x "EntrySafe-Intel/launch.command"
+          ditto -c -k --sequesterRsrc --keepParent "EntrySafe-Intel" "EntrySafe-macOS-Intel.zip"
+          
+      - name: Upload Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EntrySafe-macOS-Intel
+          path: EntrySafe-macOS-Intel.zip
+
+  build-macos-arm64:
+    name: Build macOS Apple Silicon (arm64)
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install deps (ARM64)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip uninstall -y opencv-python-headless opencv-contrib-python opencv-contrib-python-headless opencv-python numpy || true
+          pip install "setuptools==69.0.3" "wheel==0.42.0"
+          pip install "numpy${{ env.NUMPY_VERSION }}"
+          pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
+          # Install OpenCV WITHOUT dependencies to avoid conflicts
+          pip install --no-deps "opencv-python==${{ env.OPENCV_VERSION }}"
+          # Install face_recognition and its dependencies
+          pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
+          # Verify OpenCV works
+          python -c "import cv2; print('cv2:', cv2.__version__, cv2.__file__, 'VideoCapture?', hasattr(cv2,'VideoCapture')); assert hasattr(cv2, 'VideoCapture'), 'VideoCapture missing!'"
+          
+      - name: Create config.json template
+        run: |
+          set -euo pipefail
+          cat > config.json << 'EOF'
+          {
+            "DB_HOST": "CHANGE_ME",
+            "DB_PORT": 5432,
+            "DB_NAME": "CHANGE_ME",
+            "DB_USER": "CHANGE_ME",
+            "DB_PASS": "CHANGE_ME"
+          }
+          EOF
+          
+      - name: Check icon exists
+        run: |
+          set -euo pipefail
+          test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
+          
+      - name: Create OpenCV hook to fix import (ARM64)
+        run: |
+          set -euo pipefail
+          mkdir -p hooks
+          
+          cat > hooks/hook-opencv-python.py << 'EOF'
+          from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files
+          
+          binaries = collect_dynamic_libs('cv2')
+          
+          def hook(hook_api):
+              hook_api.add_imports('cv2')
+              hook_api.add_imports('cv2.cv2')
+              hook_api._module._namespace_packages = []
+          EOF
+          
+          cat > runtime_hook.py << 'EOF'
+          import os
+          import sys
+          import importlib.util
+          
+          def fix_cv2_import():
+              try:
+                  exe = sys.executable
+                  contents = os.path.dirname(os.path.dirname(exe))
+                  fw_dir = os.path.join(contents, "Frameworks")
+                  
+                  if fw_dir and os.path.isdir(fw_dir):
+                      for root, dirs, files in os.walk(fw_dir):
+                          for file in files:
+                              if file == 'cv2.abi3.so' or file.startswith('cv2.') and file.endswith('.so'):
+                                  so_path = os.path.join(root, file)
+                                  spec = importlib.util.spec_from_file_location("cv2", so_path)
+                                  if spec and spec.loader:
+                                      cv2_module = importlib.util.module_from_spec(spec)
+                                      spec.loader.exec_module(cv2_module)
+                                      sys.modules['cv2'] = cv2_module
+                                      sys.modules['cv2.cv2'] = cv2_module
+                                      print(f"Successfully loaded cv2 from {so_path}")
+                                      return
+              except Exception as e:
+                  print(f"Error fixing cv2 import: {e}")
+              
+              try:
+                  import cv2
+                  print(f"Normal import cv2 from {cv2.__file__}")
+              except:
+                  pass
+          
+          try:
+              os.chdir(os.path.expanduser("~"))
+          except Exception:
+              pass
+          
+          fix_cv2_import()
+          
+          cleaned = []
+          seen = set()
+          for p in sys.path:
+              if p in ("", "."):
+                  continue
+              norm_p = os.path.normpath(p)
+              if norm_p in seen:
+                  continue
+              seen.add(norm_p)
+              cleaned.append(p)
+          sys.path[:] = cleaned
+          EOF
+          
+      - name: Build app (PyInstaller) - ARM64 (FIXED OpenCV approach)
+        run: |
+          set -euo pipefail
+          pyinstaller --noconfirm --clean --windowed --onedir --name "EntrySafe" \
+            --icon assets/icons/appLogo.icns \
+            --osx-bundle-identifier com.entrysafe.app \
+            --paths . \
+            --additional-hooks-dir hooks \
+            --runtime-hook runtime_hook.py \
+            --hidden-import cv2 \
+            --hidden-import cv2.cv2 \
+            --hidden-import face_recognition \
+            --hidden-import face_recognition_models \
+            --hidden-import views \
+            --hidden-import utils \
+            --hidden-import utils.paths \
+            --collect-data face_recognition_models \
+            --collect-submodules views \
+            --collect-submodules utils \
+            --add-data "assets:assets" \
+            --add-data "ui:ui" \
+            --add-data "config.json:." \
+            main.py
+            
+      - name: Locate app bundle (ARM64)
+        run: |
+          set -euo pipefail
+          if [ -d "dist/EntrySafe.app" ]; then
+            APP_PATH="dist/EntrySafe.app"
+          elif [ -d "dist/EntrySafe/EntrySafe.app" ]; then
+            APP_PATH="dist/EntrySafe/EntrySafe.app"
+          else
+            APP_PATH="$(find dist -name "EntrySafe.app" -type d | head -n 1)"
+          fi
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
+          echo "Found APP_PATH=$APP_PATH"
+          
+      - name: Fix OpenCV in app bundle (ARM64)
+        run: |
+          set -euo pipefail
+          
+          # Remove any problematic cv2 directories
+          rm -rf "$APP_PATH/Contents/Resources/cv2" 2>/dev/null || true
+          rm -rf "$APP_PATH/Contents/MacOS/cv2" 2>/dev/null || true
+          
+          # Ensure cv2 is only in Frameworks
+          if [ -d "$APP_PATH/Contents/Frameworks/cv2" ]; then
+            # Make sure the .so file is directly accessible
+            find "$APP_PATH/Contents/Frameworks/cv2" -name "*.so" -exec cp {} "$APP_PATH/Contents/Frameworks/" \; 2>/dev/null || true
+          fi
+          
+      - name: Add Camera/Mic usage strings (ARM64)
+        run: |
+          set -euo pipefail
+          PLIST="$APP_PATH/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'EntrySafe needs camera access to scan and verify faces for security.'" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSCameraUsageDescription 'EntrySafe needs camera access to scan and verify faces for security.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'EntrySafe may access the microphone if required by the camera device.'" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'EntrySafe may access the microphone if required by the camera device.'" "$PLIST"
+          
+      - name: Remove broken symlinks
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' link; do
+            target="$(readlink "$link" || true)"
+            if [ -n "$target" ] && [ ! -e "$(dirname "$link")/$target" ] && [ ! -e "$target" ]; then
+              echo "BROKEN: $link -> $target"
+              rm -f "$link"
+            fi
+          done < <(find "$APP_PATH" -type l -print0)
+          
+      - name: Ad-hoc sign (ARM64)
+        run: |
+          set -euo pipefail
+          echo "Signing: $APP_PATH"
+          test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
+          
+          if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+            find "$APP_PATH/Contents/Frameworks" -type f \( -name "*.dylib" -o -name "*.so" \) -exec codesign --force --timestamp=none --sign - {} \; 2>/dev/null || true
+          fi
+          
+          codesign --force --timestamp=none --sign - "$APP_PATH/Contents/MacOS/EntrySafe" 2>/dev/null || true
+          codesign --force --timestamp=none --sign - "$APP_PATH" 2>/dev/null || true
+          
+      - name: Package ARM64 release
+        run: |
+          set -euo pipefail
+          rm -rf "EntrySafe-ARM64"
+          mkdir -p "EntrySafe-ARM64/uploads/guardians"
+          cp -R "$APP_PATH" "EntrySafe-ARM64/"
+          cp "config.json" "EntrySafe-ARM64/"
+          cat > "EntrySafe-ARM64/launch.command" << 'EOF'
+          #!/bin/bash
+          cd "$(dirname "$0")"
+          ./EntrySafe.app/Contents/MacOS/EntrySafe
+          EOF
+          chmod +x "EntrySafe-ARM64/launch.command"
+          ditto -c -k --sequesterRsrc --keepParent "EntrySafe-ARM64" "EntrySafe-macOS-ARM64.zip"
+          
+      - name: Upload ARM64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EntrySafe-macOS-ARM64
+          path: EntrySafe-macOS-ARM64.zip
