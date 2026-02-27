@@ -1,0 +1,62 @@
+name: Build EntrySafe macOS Intel (x86_64)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-macos-intel:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install opencv-python
+          pip install face_recognition
+          pip install face_recognition_models
+          pip install PyQt6
+          pip install psycopg2-binary
+
+      - name: Prepare config.json for build
+        run: |
+          cp config.example.json config.json
+
+      - name: Build macOS App (PyInstaller)
+        run: |
+          pyinstaller --windowed --onedir --name EntrySafe \
+            --icon assets/icons/appLogo.icns \
+            --osx-bundle-identifier com.entrysafe.app \
+            --paths . \
+            --hidden-import views \
+            --hidden-import utils \
+            --collect-submodules views \
+            --collect-submodules utils \
+            --collect-data face_recognition_models \
+            --collect-all cv2 \
+            --add-data "assets:assets" \
+            --add-data "ui:ui" \
+            --add-data "uploads:uploads" \
+            --add-data "config.json:." \
+            main.py
+
+      - name: Create release bundle zip
+        run: |
+          test -d "dist/EntrySafe" || (echo "dist/EntrySafe missing" && exit 1)
+          ditto -c -k --sequesterRsrc --keepParent "dist/EntrySafe" "EntrySafe-macOS-client.zip"
+
+      - name: Upload Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: EntrySafe-macOS-Intel
+          path: EntrySafe-macOS-Intel.zip
