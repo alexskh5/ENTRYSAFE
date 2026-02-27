@@ -21,14 +21,14 @@ dist/
 # ---------------------------
 .DS_Store
 
-# ---------------------------
-# Runtime uploads (DO NOT TRACK)
-# ---------------------------
-uploads/
-uploads/guardians/
-*.jpg
-*.jpeg
-*.png
+# # ---------------------------
+# # Runtime uploads (DO NOT TRACK)
+# # ---------------------------
+# uploads/
+# uploads/guardians/
+# *.jpg
+# *.jpeg
+# *.png
 
 # ---------------------------
 # Secrets / Local Config
