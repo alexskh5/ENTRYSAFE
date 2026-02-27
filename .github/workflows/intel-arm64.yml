@@ -1,4 +1,4 @@
-name: Build EntrySafe macOS (Intel + Apple Silicon) - OpenCV stable + signing stable
+name: Build EntrySafe macOS (Intel + Apple Silicon) - FINAL OpenCV + signing
 
 on:
   push:
@@ -36,7 +36,7 @@ jobs:
           pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
           pip install "opencv-python==${{ env.OPENCV_VERSION }}"
           pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
-          python -c "import cv2; import os; print('cv2:', cv2.__version__, 'file:', cv2.__file__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
+          python -c "import cv2; print('cv2:', cv2.__version__, cv2.__file__, 'VideoCapture?', hasattr(cv2,'VideoCapture'))"
 
       - name: Create config.json template
         run: |
@@ -56,52 +56,55 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Extract OpenCV config files (config.py etc.)
-        run: |
-          set -euo pipefail
-          rm -rf cv2_runtime
-          mkdir -p cv2_runtime
-          python - << 'PY'
-          import cv2, os, shutil, glob
-          pkg_dir = os.path.dirname(cv2.__file__)  # site-packages/cv2
-          patterns = ["config.py", "config-*.py", "load_config_py3.py", "load_config_py2.py", "*.xml"]
-          copied = []
-          for pat in patterns:
-            for src in glob.glob(os.path.join(pkg_dir, pat)):
-              dst = os.path.join("cv2_runtime", os.path.basename(src))
-              shutil.copy2(src, dst)
-              copied.append(dst)
-          print("cv2 pkg dir:", pkg_dir)
-          print("copied:", copied)
-          if not any(os.path.basename(x) == "config.py" for x in copied):
-            raise SystemExit("ERROR: cv2 config.py not found/copied")
-          PY
-
-      - name: Create runtime hook (remove '.' from sys.path)
+      - name: Create runtime hook (Frameworks first + remove '.' to stop cv2 confusion/recursion)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
           import os, sys
+
+          def add_frameworks_first():
+              try:
+                  exe = sys.executable  # .../EntrySafe.app/Contents/MacOS/EntrySafe
+                  contents = os.path.dirname(os.path.dirname(exe))  # .../Contents
+                  fw = os.path.join(contents, "Frameworks")
+                  if os.path.isdir(fw) and fw not in sys.path:
+                      sys.path.insert(0, fw)
+              except Exception:
+                  pass
+
+          def clean_sys_path():
+              cleaned = []
+              seen = set()
+              cwd = None
+              try:
+                  cwd = os.getcwd()
+              except Exception:
+                  cwd = None
+
+              for p in list(sys.path):
+                  if p in ("", "."):
+                      continue
+                  if cwd and os.path.normpath(p) == os.path.normpath(cwd):
+                      continue
+                  np = os.path.normpath(p)
+                  if np in seen:
+                      continue
+                  seen.add(np)
+                  cleaned.append(p)
+
+              sys.path[:] = cleaned
+
+          # use safe cwd (avoid importing from app folder / current dir)
           try:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
 
-          cleaned = []
-          seen = set()
-          for p in list(sys.path):
-              if p in ("", "."):
-                  continue
-              np = os.path.normpath(p)
-              if np in seen:
-                  continue
-              seen.add(np)
-              cleaned.append(p)
-
-          sys.path[:] = cleaned
+          add_frameworks_first()
+          clean_sys_path()
           EOF
 
-      - name: Build app (PyInstaller) - Intel
+      - name: Build app (PyInstaller) - Intel (COLLECT ALL cv2)
         run: |
           set -euo pipefail
           pyinstaller --noconfirm --clean --windowed --onedir --name "EntrySafe" \
@@ -110,6 +113,8 @@ jobs:
             --paths . \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
+            --hidden-import cv2.cv2 \
+            --collect-all cv2 \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -139,7 +144,7 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           echo "Found APP_PATH=$APP_PATH"
 
-      - name: Remove ONLY duplicate Resources/cv2 (prevents recursion)
+      - name: Remove ONLY duplicate Resources/cv2 (prevents OpenCV recursion)
         run: |
           set -euo pipefail
           if [ -d "$APP_PATH/Contents/Resources/cv2" ]; then
@@ -149,16 +154,7 @@ jobs:
             echo "No Resources/cv2 found (good)."
           fi
 
-      - name: Copy OpenCV config.py into built cv2 package (FIXES loader errors)
-        run: |
-          set -euo pipefail
-          CV2_DST="$APP_PATH/Contents/Frameworks/cv2"
-          test -d "$CV2_DST" || (echo "ERROR: Built cv2 folder not found at $CV2_DST" && ls -ლა "$APP_PATH/Contents/Frameworks" && exit 1)
-          cp -f cv2_runtime/* "$CV2_DST/" || true
-          echo "Copied OpenCV config files into: $CV2_DST"
-          ls -la "$CV2_DST" | head -n 60
-
-      - name: Bundle libintl/libiconv for Intel (prevents @rpath crash)
+      - name: Bundle libintl/libiconv for Intel (prevents @rpath/libintl.8.dylib crash)
         run: |
           set -euo pipefail
           brew update >/dev/null 2>&1 || true
@@ -204,14 +200,11 @@ jobs:
           set -euo pipefail
           echo "Signing: $APP_PATH"
           test -d "$APP_PATH" || (echo "ERROR: EntrySafe.app not found" && exit 1)
-
-          # Clean previous signature
           codesign --remove-signature "$APP_PATH" 2>/dev/null || true
 
           sign_one () {
             local item="$1"
             if [ -L "$item" ]; then
-              # Sign the real target of symlink
               local tgt
               tgt="$(python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$item")"
               echo "Signing symlink target: $tgt"
@@ -222,7 +215,7 @@ jobs:
             fi
           }
 
-          # 1) Sign Frameworks dylibs/so first (files + symlinks)
+          # Sign Frameworks dylibs/so first (includes cv2/__dot__dylibs)
           if [ -d "$APP_PATH/Contents/Frameworks" ]; then
             while IFS= read -r -d '' f; do
               sign_one "$f"
@@ -230,13 +223,8 @@ jobs:
                       \( -name "*.dylib" -o -name "*.so" \) -print0)
           fi
 
-          # 2) Sign main executable
           sign_one "$APP_PATH/Contents/MacOS/EntrySafe"
-
-          # 3) Sign bundle last
           sign_one "$APP_PATH"
-
-          # Verify
           codesign --verify --verbose=4 "$APP_PATH"
 
       - name: Package Intel release
@@ -283,7 +271,7 @@ jobs:
           pip install "pyinstaller==${{ env.PYINSTALLER_VERSION }}" "pyinstaller-hooks-contrib==${{ env.PYINSTALLER_HOOKS_VERSION }}"
           pip install "opencv-python==${{ env.OPENCV_VERSION }}"
           pip install face_recognition face_recognition_models PyQt6 psycopg2-binary
-          python -c "import cv2; import os; print('cv2:', cv2.__version__, 'file:', cv2.__file__); print('Has VideoCapture?', hasattr(cv2,'VideoCapture'))"
+          python -c "import cv2; print('cv2:', cv2.__version__, cv2.__file__, 'VideoCapture?', hasattr(cv2,'VideoCapture'))"
 
       - name: Create config.json template
         run: |
@@ -303,50 +291,54 @@ jobs:
           set -euo pipefail
           test -f "assets/icons/appLogo.icns" || (echo "ERROR: assets/icons/appLogo.icns missing" && exit 1)
 
-      - name: Extract OpenCV config files (config.py etc.)
-        run: |
-          set -euo pipefail
-          rm -rf cv2_runtime
-          mkdir -p cv2_runtime
-          python - << 'PY'
-          import cv2, os, shutil, glob
-          pkg_dir = os.path.dirname(cv2.__file__)
-          patterns = ["config.py", "config-*.py", "load_config_py3.py", "load_config_py2.py", "*.xml"]
-          copied = []
-          for pat in patterns:
-            for src in glob.glob(os.path.join(pkg_dir, pat)):
-              dst = os.path.join("cv2_runtime", os.path.basename(src))
-              shutil.copy2(src, dst)
-              copied.append(dst)
-          print("cv2 pkg dir:", pkg_dir)
-          print("copied:", copied)
-          if not any(os.path.basename(x) == "config.py" for x in copied):
-            raise SystemExit("ERROR: cv2 config.py not found/copied")
-          PY
-
-      - name: Create runtime hook (remove '.' from sys.path)
+      - name: Create runtime hook (Frameworks first + remove '.' to stop cv2 confusion/recursion)
         run: |
           set -euo pipefail
           cat > runtime_hook.py << 'EOF'
           import os, sys
+
+          def add_frameworks_first():
+              try:
+                  exe = sys.executable
+                  contents = os.path.dirname(os.path.dirname(exe))
+                  fw = os.path.join(contents, "Frameworks")
+                  if os.path.isdir(fw) and fw not in sys.path:
+                      sys.path.insert(0, fw)
+              except Exception:
+                  pass
+
+          def clean_sys_path():
+              cleaned = []
+              seen = set()
+              cwd = None
+              try:
+                  cwd = os.getcwd()
+              except Exception:
+                  cwd = None
+
+              for p in list(sys.path):
+                  if p in ("", "."):
+                      continue
+                  if cwd and os.path.normpath(p) == os.path.normpath(cwd):
+                      continue
+                  np = os.path.normpath(p)
+                  if np in seen:
+                      continue
+                  seen.add(np)
+                  cleaned.append(p)
+
+              sys.path[:] = cleaned
+
           try:
               os.chdir(os.path.expanduser("~"))
           except Exception:
               pass
-          cleaned = []
-          seen = set()
-          for p in list(sys.path):
-              if p in ("", "."):
-                  continue
-              np = os.path.normpath(p)
-              if np in seen:
-                  continue
-              seen.add(np)
-              cleaned.append(p)
-          sys.path[:] = cleaned
+
+          add_frameworks_first()
+          clean_sys_path()
           EOF
 
-      - name: Build app (PyInstaller) - ARM64
+      - name: Build app (PyInstaller) - ARM64 (COLLECT ALL cv2)
         run: |
           set -euo pipefail
           pyinstaller --noconfirm --clean --windowed --onedir --name "EntrySafe" \
@@ -355,6 +347,8 @@ jobs:
             --paths . \
             --runtime-hook runtime_hook.py \
             --hidden-import cv2 \
+            --hidden-import cv2.cv2 \
+            --collect-all cv2 \
             --hidden-import views \
             --hidden-import utils \
             --hidden-import utils.paths \
@@ -384,7 +378,7 @@ jobs:
           echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           echo "Found APP_PATH=$APP_PATH"
 
-      - name: Remove ONLY duplicate Resources/cv2 (prevents recursion)
+      - name: Remove ONLY duplicate Resources/cv2 (prevents OpenCV recursion)
         run: |
           set -euo pipefail
           if [ -d "$APP_PATH/Contents/Resources/cv2" ]; then
@@ -393,15 +387,6 @@ jobs:
           else
             echo "No Resources/cv2 found (good)."
           fi
-
-      - name: Copy OpenCV config.py into built cv2 package (FIXES loader errors)
-        run: |
-          set -euo pipefail
-          CV2_DST="$APP_PATH/Contents/Frameworks/cv2"
-          test -d "$CV2_DST" || (echo "ERROR: Built cv2 folder not found at $CV2_DST" && ls -la "$APP_PATH/Contents/Frameworks" && exit 1)
-          cp -f cv2_runtime/* "$CV2_DST/" || true
-          echo "Copied OpenCV config files into: $CV2_DST"
-          ls -la "$CV2_DST" | head -n 60
 
       - name: Add Camera/Mic usage strings (ARM64)
         run: |
@@ -429,7 +414,7 @@ jobs:
             fi
           done < <(find "$APP_PATH" -type l -print0)
 
-      - name: Ad-hoc sign (ARM64) - robust
+      - name: Ad-hoc sign (ARM64) - robust (includes symlink targets)
         run: |
           set -euo pipefail
           echo "Signing: $APP_PATH"
