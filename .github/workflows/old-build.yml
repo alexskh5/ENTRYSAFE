@@ -23,10 +23,45 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller opencv-python face_recognition face_recognition_models PyQt6 psycopg2-binary
 
+      # --- DEBUG (helps you see what files exist on the runner) ---
+      - name: Debug - list repo files and config templates
+        run: |
+          pwd
+          ls -la
+          echo "---- config candidates ----"
+          find . -maxdepth 3 -name "config*.json" -print
+
+      # --- CREATE config.json from whichever template exists ---
       - name: Prepare default config.json (for packaging)
         run: |
-          cp config.example.json config.json
+          if [ -f config.example.json ]; then
+            echo "Using config.example.json"
+            cp config.example.json config.json
+          elif [ -f config.template.json ]; then
+            echo "Using config.template.json"
+            cp config.template.json config.json
+          elif [ -f database/config.example.json ]; then
+            echo "Using database/config.example.json"
+            cp database/config.example.json config.json
+          elif [ -f database/config.template.json ]; then
+            echo "Using database/config.template.json"
+            cp database/config.template.json config.json
+          else
+            echo "ERROR: No config template found."
+            echo "Expected one of:"
+            echo "  - config.example.json"
+            echo "  - config.template.json"
+            echo "  - database/config.example.json"
+            echo "  - database/config.template.json"
+            echo ""
+            echo "Files found:"
+            find . -maxdepth 3 -name "config*.json" -print
+            exit 1
+          fi
+
           test -f config.json || (echo "config.json missing" && exit 1)
+          echo "Created config.json:"
+          ls -la config.json
 
       - name: Build macOS App (PyInstaller)
         run: |
@@ -45,10 +80,13 @@ jobs:
             --add-data "uploads:uploads" \
             main.py
 
+      # Ship editable config.json NEXT TO the .app (best for editing)
       - name: Create release folder with editable config.json
         run: |
           rm -rf release
           mkdir -p release
+          test -d "dist/EntrySafe/EntrySafe.app" || (echo "EntrySafe.app missing" && find dist -maxdepth 4 -print && exit 1)
+
           cp -R "dist/EntrySafe/EntrySafe.app" release/
           cp config.json release/
           ls -la release
